@@ -67,6 +67,15 @@ class GdbClient(private val socket: Socket) {
         return regs
     }
 
+    /** 直接读 PC 寄存器（p 包，避免 g 包的 RLE 与超长寄存器表） */
+    fun readPcFast(): Long {
+        val rep = send("p20")
+        if (rep.isEmpty() || rep[0] == 'E') return -1
+        val hex = decodeRle(rep).replace(" ", "")
+        if (hex.length < 16) return -1
+        return parseLittleEndian(hex.substring(0, 16))
+    }
+
     fun readMemory(addr: Long, len: Int): ByteArray? {
         if (len <= 0) return null
         val reply = send("m%x,%x".format(addr, len))
@@ -93,6 +102,11 @@ class GdbClient(private val socket: Socket) {
         val raw = send("g")
         if (raw.isEmpty() || raw[0] == 'E') return -1
         val hex = decodeRle(raw)
+        if (hex.length >= 34 * 16) {
+            val dbg = StringBuilder("gregs:")
+            for (i in 29..33) dbg.append(" ").append(i).append("=").append(java.lang.Long.toHexString(parseLittleEndian(hex.substring(i * 16, (i + 1) * 16))))
+            android.util.Log.i("CodePadRSP", dbg.toString() + " len=" + hex.length / 16)
+        }
         if (hex.length < 33 * 16) {
             android.util.Log.w("CodePadRSP", "g too short: " + hex.length)
             return -1
@@ -130,6 +144,36 @@ class GdbClient(private val socket: Socket) {
             byteIndex++
         }
         return if (byteIndex == 0) -1 else value
+    }
+
+    companion object {
+        /** 从 T 包（如 T05...;20:74 47 55 55 55 55 00 00;...）里取 PC */
+        fun pcFromReply(reply: String): Long? {
+            val idx = reply.indexOf("20:")
+            if (idx < 0) {
+                // 也兼容 thread:p..; 形式下的寄存器顺序，逐个找像代码地址的值
+                return null
+            }
+            var i = idx + 3
+            val sb = StringBuilder()
+            while (i < reply.length && reply[i] != ';') {
+                val c = reply[i]
+                if (c != '*') sb.append(c)
+                i++
+            }
+            val hex = sb.toString().replace(" ", "")
+            if (hex.length < 16) return null
+            return parseLe(hex)
+        }
+
+        private fun parseLe(hex: String): Long? {
+            var v = 0L
+            for (k in 0 until 8) {
+                val b = hex.substring(k * 2, k * 2 + 2).toIntOrNull(16) ?: return null
+                v = v or (b.toLong() shl (8 * k))
+            }
+            return v
+        }
     }
 
     fun close() {

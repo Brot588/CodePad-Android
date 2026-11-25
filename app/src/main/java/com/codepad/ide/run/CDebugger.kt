@@ -246,7 +246,20 @@ object CDebugger {
                     hits.forEach { gdb.send("Z0,%x,4".format(it)) }
                 }
             }
-            val reply: String = if (command == "s" || command == "n") gdb.send("s") else gdb.send(command)
+            var reply: String = if (command == "s" || command == "n") gdb.send("s") else gdb.send(command)
+            if (command == "s" || command == "n") {
+                val range = if (lastPc > 0) CToolchain.lineRange(table, lastPc - base) else null
+                if (range != null) {
+                    var guard = 0
+                    while (guard++ < 120 && !reply.startsWith("W") && !reply.startsWith("X")) {
+                        val cur = gdb.readPcFast()
+                        if (cur < 0) break
+                        val rel = cur - base
+                        if (rel < range.first || rel >= range.second) break
+                        reply = gdb.send("s")
+                    }
+                }
+            }
             Regex("thread:([^;]+)").find(reply)?.let { threadSpec = it.groupValues[1] }
             Log.i("CodePadRSP", cmd_reply_log(command + " (" + reply.take(12) + ")", reply))
             if (reply.startsWith("W") || reply.startsWith("X")) {
