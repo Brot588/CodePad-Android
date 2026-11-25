@@ -246,20 +246,7 @@ object CDebugger {
                     hits.forEach { gdb.send("Z0,%x,4".format(it)) }
                 }
             }
-            var reply: String = if (command == "s" || command == "n") gdb.send("s") else gdb.send(command)
-            if (command == "s" || command == "n") {
-                val range = if (lastPc > 0) CToolchain.lineRange(table, lastPc - base) else null
-                if (range != null) {
-                    var guard = 0
-                    while (guard++ < 120 && !reply.startsWith("W") && !reply.startsWith("X")) {
-                        val cur = gdb.readPcFast()
-                        if (cur < 0) break
-                        val rel = cur - base
-                        if (rel < range.first || rel >= range.second) break
-                        reply = gdb.send("s")
-                    }
-                }
-            }
+            val reply: String = if (command == "s" || command == "n") gdb.send("s") else gdb.send(command)
             Regex("thread:([^;]+)").find(reply)?.let { threadSpec = it.groupValues[1] }
             Log.i("CodePadRSP", cmd_reply_log(command + " (" + reply.take(12) + ")", reply))
             if (reply.startsWith("W") || reply.startsWith("X")) {
@@ -274,7 +261,13 @@ object CDebugger {
             }
             var pc = gdb.readPc()
             lastPc = pc
-            var line = CToolchain.lineForAddress(table, pc - base) ?: 0
+            val relPc = pc - base
+            // 跑出本文件（libc / PLT / 程序已返回）就不再当作源码行
+            if (table.isNotEmpty() && (relPc < 0 || relPc > table.last().first)) {
+                publish("{\"type\":\"exit\",\"code\":0}")
+                return
+            }
+            var line = CToolchain.lineForAddress(table, relPc) ?: 0
             lastPublished = line
             Log.i("CodePadRSP", "pc=0x" + java.lang.Long.toHexString(pc) + " line=" + line)
             val reason = if (lastCommand == "c") "断点" else "单步"

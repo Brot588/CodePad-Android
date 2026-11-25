@@ -649,6 +649,24 @@ object CToolchain {
      * 范围单步（vCont;r）用它：只走完这一行的指令，离开区间就停，
      * 这样 for 循环的回边不会被误判成「还在同一行」而一路走到 return。
      */
+    /** 当前行之后的第一条其它源码行的起始地址（用于「单步跳过」的临时断点） */
+    fun nextLineAddress(
+        table: List<Pair<Long, Int>>,
+        pc: Long,
+        trivial: (Int) -> Boolean = { false },
+    ): Long? {
+        var line = -1
+        for (row in table) {
+            if (row.first > pc) break
+            line = row.second
+        }
+        if (line <= 0) return null
+        for (row in table) {
+            if (row.first > pc && row.second != line && !trivial(row.second)) return row.first
+        }
+        return null
+    }
+
     fun lineRange(table: List<Pair<Long, Int>>, pc: Long): Pair<Long, Long>? {
         if (table.isEmpty()) return null
         var idx = -1
