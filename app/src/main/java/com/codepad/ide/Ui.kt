@@ -345,8 +345,58 @@ fun IdeScreen(c: IdeController) {
                             tint = if (c.showTerminal) Green else Muted,
                         )
                     }
-                    IconButton(onClick = { c.openDialog("newFile", c.project?.dir) }) {
-                        Icon(Icons.Filled.Add, contentDescription = "新建文件", tint = Muted)
+                    Box {
+                        var projectOpen by remember { mutableStateOf(false) }
+                        IconButton(onClick = { projectOpen = true }) {
+                            Icon(
+                                Icons.Filled.FolderOpen,
+                                contentDescription = "工程",
+                                tint = if (projectOpen) Green else Muted,
+                            )
+                        }
+                        DropdownMenu(expanded = projectOpen, onDismissRequest = { projectOpen = false }) {
+                            c.projects.forEach { p ->
+                                DropdownMenuItem(
+                                    text = {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Icon(
+                                                if (p.id == c.project?.id) Icons.Filled.FolderOpen else Icons.Filled.Folder,
+                                                null,
+                                                tint = if (p.id == c.project?.id) Green else Muted,
+                                                modifier = Modifier.size(14.dp),
+                                            )
+                                            Spacer(Modifier.width(8.dp))
+                                            Text(p.name, fontSize = 13.sp)
+                                        }
+                                    },
+                                    onClick = {
+                                        projectOpen = false
+                                        if (p.id != c.project?.id) c.switchProject(p)
+                                    },
+                                )
+                            }
+                            HorizontalDivider(color = Stroke)
+                            DropdownMenuItem(
+                                text = { Text("新建工程…") },
+                                onClick = { projectOpen = false; c.openDialog("newProject") },
+                            )
+                            DropdownMenuItem(
+                                text = { Text("导入工程（zip）") },
+                                onClick = { projectOpen = false; c.startImport() },
+                            )
+                            DropdownMenuItem(
+                                text = { Text("导出当前工程（zip）") },
+                                onClick = { projectOpen = false; c.startExport() },
+                            )
+                            DropdownMenuItem(
+                                text = { Text("重命名当前工程…") },
+                                onClick = { projectOpen = false; c.openDialog("renameProject") },
+                            )
+                            DropdownMenuItem(
+                                text = { Text("删除当前工程…") },
+                                onClick = { projectOpen = false; c.openDialog("deleteProject") },
+                            )
+                        }
                     }
                     Box {
                         IconButton(onClick = { menuOpen = true }) {
@@ -369,18 +419,6 @@ fun IdeScreen(c: IdeController) {
                             DropdownMenuItem(
                                 text = { Text("选择运行目标…") },
                                 onClick = { menuOpen = false; c.chooseRunTarget() },
-                            )
-                            DropdownMenuItem(
-                                text = { Text("导出工程（zip）") },
-                                onClick = { menuOpen = false; c.startExport() },
-                            )
-                            DropdownMenuItem(
-                                text = { Text("导入工程（zip）") },
-                                onClick = { menuOpen = false; c.startImport() },
-                            )
-                            DropdownMenuItem(
-                                text = { Text("新建工程") },
-                                onClick = { menuOpen = false; c.openDialog("newProject") },
                             )
                             DropdownMenuItem(
                                 text = { Text(if (c.webPreviewVisible) "收起网页预览" else "网页预览（实时）") },
@@ -500,7 +538,6 @@ private class DragHost {
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun ExplorerPanel(c: IdeController, modifier: Modifier) {
-    var projectMenu by remember { mutableStateOf(false) }
     var menuFor by remember { mutableStateOf<File?>(null) }
     val host = remember { DragHost() }
 
@@ -509,64 +546,6 @@ private fun ExplorerPanel(c: IdeController, modifier: Modifier) {
     } else null
 
     Column(modifier.background(Panel)) {
-        // 工程切换条
-        Row(
-            Modifier
-                .fillMaxWidth()
-                .background(PanelAlt)
-                .clickable { projectMenu = true }
-                .padding(start = 10.dp, end = 4.dp, top = 8.dp, bottom = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Icon(Icons.Filled.FolderOpen, null, tint = Color(0xFFE0B25C), modifier = Modifier.size(15.dp))
-            Spacer(Modifier.width(6.dp))
-            Text(
-                c.project?.name ?: "未打开工程",
-                fontSize = 12.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = Color(0xFFE6EAF2),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f),
-            )
-            Icon(Icons.Filled.ArrowDropDown, null, tint = Muted, modifier = Modifier.size(18.dp))
-        }
-        DropdownMenu(expanded = projectMenu, onDismissRequest = { projectMenu = false }) {
-            c.projects.forEach { p ->
-                DropdownMenuItem(
-                    text = {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                if (p.id == c.project?.id) Icons.Filled.FolderOpen else Icons.Filled.Folder,
-                                null,
-                                tint = if (p.id == c.project?.id) Accent else Muted,
-                                modifier = Modifier.size(14.dp),
-                            )
-                            Spacer(Modifier.width(8.dp))
-                            Text(p.name, fontSize = 13.sp)
-                        }
-                    },
-                    onClick = {
-                        projectMenu = false
-                        if (p.id != c.project?.id) c.switchProject(p)
-                    },
-                )
-            }
-            HorizontalDivider(color = Stroke)
-            DropdownMenuItem(
-                text = { Text("＋ 新建工程…") },
-                onClick = { projectMenu = false; c.openDialog("newProject") },
-            )
-            DropdownMenuItem(
-                text = { Text("重命名当前工程…") },
-                onClick = { projectMenu = false; c.openDialog("renameProject") },
-            )
-            DropdownMenuItem(
-                text = { Text("删除当前工程…") },
-                onClick = { projectMenu = false; c.openDialog("deleteProject") },
-            )
-        }
-
         // 工具条
         Row(
             Modifier.fillMaxWidth().padding(start = 10.dp, end = 2.dp, top = 2.dp, bottom = 2.dp),
