@@ -1,6 +1,13 @@
+> [!WARNING]
+> **项目完善中（Experimental / WIP）**
+> 这个项目还在开发中，功能不完整、行为可能随时变化，**不建议现在下载日常使用**。
+> 已知问题：调试器的源码级单步（一次走一行）尚未完成，目前只能按指令单步；
+> 其余功能（编辑、运行、Git、预览）可用，但同样可能有 bug。
+> 想尝鲜可以看 Releases，但请当作**实验版本**对待。
+
 # CodePad
 
-> 把 VS Code 的**编辑器**体验搬进 Android 平板：Monaco（VS Code 同款内核）+ 内置 C/C++/Rust/Python/JS 工具链，离线编译、真 GDB 调试、Git 面板、HTML 实时预览。
+> 把 VS Code 的**编辑器**体验搬进 Android 平板：Monaco（VS Code 同款内核）+ 内置 C/C++/Rust/Python/JS 工具链，离线编译、Git 面板、HTML 实时预览。调试（gdbserver + DWARF）仍在完善中。
 
 一个**完全离线**的 Android 平板 IDE。不需要网络、不需要 Termux、不需要 root：
 工具链随 APK 一起装好，打开就能写代码、编译、下断点、提交 Git。
@@ -13,7 +20,7 @@
 |---|---|---|
 | 编辑器 | 简易高亮 | Monaco（VS Code 同款） |
 | 运行 | 只有脚本语言 | C/C++/Rust/Python/JS/Shell 都能真编译真跑 |
-| 调试 | 打印日志 | gdbserver + DWARF，断点/单步/变量/调用栈 |
+| 调试 | 打印日志 | gdbserver + DWARF（**完善中**：断点/变量/调用栈可用，源码级单步未完成） |
 | 补全 | 关键词 | clangd / rust-analyzer（LSP） |
 | 版本控制 | 无 | 内置 git，状态/diff/暂存/提交 |
 
@@ -49,7 +56,10 @@
 
 ![终端](docs/screenshot-terminal.png)
 
-### 调试
+### 调试（完善中）
+
+> 断点、变量、调用栈可用；**源码级单步尚未完成**（目前是逐条指令单步，体验不好）。
+
 - 断点：点行号左侧红点，支持条件无、命中高亮
 - 步进：继续 / 单步跳过 / 单步进入 / 跳出 / 停止
 - 面板：局部变量、调用栈（文件:行号）
@@ -74,6 +84,8 @@
 ![实时预览](docs/screenshot-live-preview.png)
 
 ## 下载
+
+> **实验版本，不建议日常使用。** 下面的包能装能跑，但请当作预览版。
 
 **[⬇ 下载最新版（Releases）](https://github.com/Brot588/CodePad-Android/releases/latest)**
 
