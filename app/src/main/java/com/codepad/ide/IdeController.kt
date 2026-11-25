@@ -517,6 +517,7 @@ class IdeController(private val activity: MainActivity) {
     var debugVars by mutableStateOf<List<Pair<String, String>>>(emptyList())
         private set
     var debugStack by mutableStateOf<List<String>>(emptyList())
+    var debugOut by mutableStateOf("")
         private set
 
     fun startDebug() {
@@ -535,6 +536,13 @@ class IdeController(private val activity: MainActivity) {
         }
         saveBuffer(null)
         DebugBridge.reset()
+        debugOut = ""
+        CDebugger.onOutput = { line ->
+            ui {
+                if (debugOut.length > 6000) debugOut = debugOut.takeLast(3000)
+                debugOut = debugOut + line + "\n"
+            }
+        }
         showTerminal = true
         bottomTab = DEBUG_TAB
         debugActive = true
@@ -543,6 +551,7 @@ class IdeController(private val activity: MainActivity) {
         debugLine = 0
         debugVars = emptyList()
         debugStack = emptyList()
+        debugOut = ""
         DebugBridge.listener = { json ->
             ui { onDebugState(json) }
         }

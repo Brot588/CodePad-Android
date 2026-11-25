@@ -1196,6 +1196,21 @@ private fun DebugContent(c: IdeController) {
             }
         }
         Box(Modifier.width(1.dp).fillMaxHeight().background(Stroke))
+        Column(Modifier.weight(1.2f).fillMaxHeight().padding(horizontal = 8.dp, vertical = 6.dp)) {
+            Text(Loc.t("输出"), fontSize = 10.sp, color = Muted, fontWeight = FontWeight.SemiBold)
+            Spacer(Modifier.height(4.dp))
+            val scroll = rememberScrollState()
+            LaunchedEffect(c.debugOut) { scroll.animateScrollTo(scroll.maxValue) }
+            Column(Modifier.fillMaxSize().verticalScroll(scroll)) {
+                Text(
+                    c.debugOut.ifBlank { "（程序没有输出）" },
+                    fontSize = 11.sp,
+                    color = Color(0xFFC2C9D6),
+                    fontFamily = FontFamily.Monospace,
+                )
+            }
+        }
+        Box(Modifier.width(1.dp).fillMaxHeight().background(Stroke))
         Column(Modifier.weight(1f).fillMaxHeight().padding(horizontal = 8.dp, vertical = 6.dp)) {
             Text(Loc.t("调用栈"), fontSize = 10.sp, color = Muted, fontWeight = FontWeight.SemiBold)
             Spacer(Modifier.height(4.dp))

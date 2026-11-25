@@ -20,6 +20,9 @@ object CDebugger {
 
     private var server: Process? = null
     private var inferiorPid: Int = 0
+
+    /** 被调试程序的标准输出（gdbserver 会转发到它的 stdout） */
+    var onOutput: ((String) -> Unit)? = null
     private var client: GdbClient? = null
     private var worker: Thread? = null
     private val commands = LinkedBlockingQueue<String>()
@@ -121,6 +124,12 @@ object CDebugger {
             try {
                 process.inputStream.bufferedReader().forEachLine { line ->
                     Log.i("CodePadC", "gdbserver: $line")
+                    val protocol = line.startsWith("Listening on port") ||
+                        line.startsWith("Remote debugging") ||
+                        line.contains("created; pid =") ||
+                        line.startsWith("Exiting") ||
+                        line.startsWith("Can't bind")
+                    if (!protocol) onOutput?.invoke(line)
                     val m = Regex("Listening on port\\s+(\\d+)").find(line)
                     if (m != null && portRef.get() == 0) {
                         portRef.set(m.groupValues[1].toIntOrNull() ?: 0)
