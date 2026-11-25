@@ -1415,7 +1415,6 @@ class IdeController(private val activity: MainActivity) {
         }
         session = newSession()
         clearTerminal()
-        appendTerminal("\r\n")
         if (terminalReady) {
             terminalWorkingDir = cwd
             startSessionIn(cwd)

@@ -41,6 +41,8 @@ import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.DeleteSweep
+import androidx.compose.material.icons.filled.RestartAlt
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CreateNewFolder
 import androidx.compose.material.icons.filled.Description
@@ -853,9 +855,15 @@ private fun BottomDock(c: IdeController, panelHeight: Int) {
             Spacer(Modifier.weight(1f))
 
             if (c.bottomTab == TERMINAL_TAB) {
-                DockAction("清屏") { c.ensureTerminal(); c.clearTerminal() }
-                DockAction("重启") { c.restartTerminal() }
-                DockAction("✕") { c.showTerminal = false }
+                IconButton(onClick = { c.ensureTerminal(); c.clearTerminal() }, modifier = Modifier.size(26.dp)) {
+                    Icon(Icons.Filled.DeleteSweep, contentDescription = "清屏", tint = Muted, modifier = Modifier.size(15.dp))
+                }
+                IconButton(onClick = { c.restartTerminal() }, modifier = Modifier.size(26.dp)) {
+                    Icon(Icons.Filled.RestartAlt, contentDescription = "重启终端", tint = Muted, modifier = Modifier.size(15.dp))
+                }
+                IconButton(onClick = { c.showTerminal = false }, modifier = Modifier.size(26.dp)) {
+                    Icon(Icons.Filled.Close, contentDescription = "收起终端", tint = Muted, modifier = Modifier.size(15.dp))
+                }
             } else {
                 if (c.debugActive) {
                     if (c.debugPaused) {
@@ -907,17 +915,6 @@ private fun DockTab(label: String, active: Boolean, onClick: () -> Unit) {
             .clickable(onClick = onClick)
             .padding(horizontal = 10.dp, vertical = 4.dp),
     )
-}
-
-@Composable
-private fun DockAction(label: String, onClick: () -> Unit) {
-    TextButton(
-        onClick = onClick,
-        contentPadding = PaddingValues(horizontal = 8.dp),
-        modifier = Modifier.height(26.dp),
-    ) {
-        Text(label, fontSize = 10.sp, color = Muted)
-    }
 }
 
 @Composable
