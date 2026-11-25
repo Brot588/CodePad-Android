@@ -156,11 +156,11 @@ fun IdeScreen(c: IdeController) {
                     if (c.searchOpen) {
                         val searchFocus = remember { FocusRequester() }
                         LaunchedEffect(Unit) { searchFocus.requestFocus() }
-                        Box(Modifier.width(320.dp)) {
+                        Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
                                 modifier = Modifier
-                                    .fillMaxWidth()
+                                    .width(320.dp)
                                     .height(34.dp)
                                     .clip(RoundedCornerShape(17.dp))
                                     .background(Color(0xFF262B36))
@@ -208,7 +208,7 @@ fun IdeScreen(c: IdeController) {
                             if (c.searchResults.isNotEmpty()) {
                                 val gapPx = with(LocalDensity.current) { 40.dp.roundToPx() }
                                 Popup(
-                                    alignment = Alignment.TopStart,
+                                    alignment = Alignment.TopEnd,
                                     offset = IntOffset(0, gapPx),
                                     properties = PopupProperties(focusable = false),
                                 ) {
@@ -358,24 +358,12 @@ fun IdeScreen(c: IdeController) {
                         }
                         DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
                             DropdownMenuItem(
-                                text = { Text("新建文件") },
-                                onClick = { menuOpen = false; c.openDialog("newFile", c.project?.dir) },
-                            )
-                            DropdownMenuItem(
-                                text = { Text("新建文件夹") },
-                                onClick = { menuOpen = false; c.openDialog("newFolder", c.project?.dir) },
-                            )
-                            DropdownMenuItem(
-                                text = { Text("重命名当前文件") },
-                                onClick = { menuOpen = false; c.active?.let { c.openDialog("renameNode", it) } },
-                            )
-                            DropdownMenuItem(
-                                text = { Text("删除当前文件") },
-                                onClick = { menuOpen = false; c.active?.let { c.openDialog("deleteNode", it) } },
-                            )
-                            DropdownMenuItem(
                                 text = { Text("切换断点（当前行）") },
                                 onClick = { menuOpen = false; c.js("CP.toggleBreakpointAtCursor()") },
+                            )
+                            DropdownMenuItem(
+                                text = { Text("跳转到定义（F12）") },
+                                onClick = { menuOpen = false; c.js("CP.gotoDefinition()") },
                             )
                             HorizontalDivider(color = Stroke)
                             DropdownMenuItem(
@@ -441,7 +429,7 @@ fun IdeScreen(c: IdeController) {
                 }
             }
             // 键盘弹出时把底部面板整个收起来，把空间还给编辑区
-            if (c.showTerminal && !(imeVisible && c.editorFocused)) {
+            if (c.showTerminal && !(imeVisible && (c.editorFocused || c.searchOpen))) {
                 HorizontalDivider(color = Stroke)
                 BottomDock(c, c.terminalHeight)
             }
