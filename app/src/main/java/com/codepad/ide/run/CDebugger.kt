@@ -62,6 +62,7 @@ object CDebugger {
 
     private var table: List<Pair<Long, Int>> = emptyList()
     private var dwarf: DwarfInfo? = null
+    private var srcLines: List<String> = emptyList()
     private var srcName = ""
 
     /** PIE 加载基址：/proc/pid/maps 里 offset 为 0 的那段 */
@@ -161,6 +162,7 @@ object CDebugger {
         }
 
         table = CToolchain.lineTable(exe, source.name)
+        srcLines = try { source.readLines() } catch (_: Throwable) { emptyList() }
         srcName = source.name
         dwarf = CToolchain.debugInfo(exe)
         log(Loc.t("调试信息：%s 行 / %s 个函数", table.size, dwarf?.all()?.size ?: 0))
@@ -401,9 +403,10 @@ object CDebugger {
         return st
     }
 
-    /** 单步进入：走到下一行（进了没有源码的地方也停） */
+    /** 单步进入：走到下一行；进了没有源码的库函数/PLT 桩就当作跳过这个调用 */
     private fun stepInto(gdb: GdbClient, log: (String) -> Unit): Stop {
         val startLine = lineAt(curPc - base)
+        val startFunc = dwarf?.at(curPc - base)
         var guard = 0
         while (true) {
             val st = stepInstr(gdb)
@@ -421,7 +424,37 @@ object CDebugger {
                 return st
             }
             val line = lineAt(pc - base)
-            if (line == 0 || line != startLine) {
+            // 走进 PLT 桩 / 库函数（二进制里没有 DWARF 函数）时没有源码可看，
+            // 直接跑到调用点，别把高亮停在一条没有行号的指令上
+            if (line == 0 && startFunc != null && dwarf?.at(pc - base) == null) {
+                val r = skipCall(gdb, st)
+                if (r != null) {
+                    if (r.exited || r.error) {
+                        r.reason = "step"
+                        return r
+                    }
+                    if (userBpHit(r.pc())) {
+                        r.reason = "breakpoint"
+                        return r
+                    }
+                    if (r.signal != 5) {
+                        r.reason = "signal"
+                        return r
+                    }
+                    val line2 = lineAt(r.pc() - base)
+                    if (isStepStop(line2, startLine) || line2 == 0) {
+                        r.reason = "step"
+                        return r
+                    }
+                    if (++guard > MAX_INSTR_STEPS) {
+                        log(Loc.t("单步超过 %s 条指令，先停在这里", MAX_INSTR_STEPS))
+                        r.reason = "step"
+                        return r
+                    }
+                    continue
+                }
+            }
+            if (isStepStop(line, startLine) || line == 0) {
                 st.reason = "step"
                 return st
             }
@@ -458,59 +491,46 @@ object CDebugger {
             if (!sameFunc) {
                 // 走进了被调用函数 / PLT 桩 / 库函数：单步跳过要把整个调用跑完
                 val ret = callReturn(gdb, st.regs)
-                if (ret != null && ret != pc) {
-                    if (insertedBpAt(ret) != null) {
-                        // 返回地址上本来就有断点，继续就会停在那里
-                        val r = Stop(gdb.send("c"))
-                        r.reason = "breakpoint"
-                        readRegs(gdb, r)
-                        if (!r.exited && !r.error) curPc = r.pc()
+                val r = if (ret != null && ret != pc) skipCall(gdb, st) else null
+                if (r != null) {
+                    if (r.exited || r.error) {
+                        r.reason = "next"
                         return r
                     }
-                    if (tempBpInsert(gdb, ret)) {
-                        val r = Stop(gdb.send("c"))
-                        tempBpRemove(gdb, ret)
-                        if (r.exited || r.error) {
-                            r.reason = "next"
-                            return r
-                        }
-                        readRegs(gdb, r)
-                        val rpc = r.pc()
-                        curPc = rpc
-                        if (userBpHit(rpc)) {
-                            r.reason = "breakpoint"
-                            return r
-                        }
-                        if (r.signal != 5) {
-                            r.reason = "signal"
-                            return r
-                        }
-                        val line2 = lineAt(rpc - base)
-                        if (line2 == 0 || line2 != startLine) {
-                            r.reason = "next"
-                            return r
-                        }
-                        // 回到同一行（比如 x = f() + 1），接着按指令走
-                        if (++guard > MAX_INSTR_STEPS) {
-                            log(Loc.t("单步超过 %s 条指令，先停在这里", MAX_INSTR_STEPS))
-                            r.reason = "next"
-                            return r
-                        }
-                        continue
+                    if (userBpHit(r.pc())) {
+                        r.reason = "breakpoint"
+                        return r
                     }
-                    // 插不上临时断点：退回逐条指令（下面有 guard 兜底）
-                } else if (startFunc == null) {
+                    if (r.signal != 5) {
+                        r.reason = "signal"
+                        return r
+                    }
+                    val line2 = lineAt(r.pc() - base)
+                    if (isStepStop(line2, startLine) || line2 == 0) {
+                        r.reason = "next"
+                        return r
+                    }
+                    // 回到同一行（比如 x = f() + 1）或空行：接着按指令走
+                    if (++guard > MAX_INSTR_STEPS) {
+                        log(Loc.t("单步超过 %s 条指令，先停在这里", MAX_INSTR_STEPS))
+                        r.reason = "next"
+                        return r
+                    }
+                    continue
+                }
+                if (startFunc == null) {
                     // 本来就没有源码行可依（停在库里），又没有可用的返回地址：停在这条指令
                     st.reason = "next"
                     return st
-                } else if (!inOwnText(pc)) {
+                }
+                if (!inOwnText(pc)) {
                     // 返回地址也不在自己的代码里：已经走出源程序（main 返回给 libc）
                     return endOfProgram(gdb)
                 }
             }
             val line = lineAt(pc - base)
-            // 换行就停；同一行（或同一函数里没有行号的地方）继续走
-            if (line == 0 || line != startLine) {
+            // 换行就停；同一行、或者 } 这类没有语句的空行继续走
+            if (isStepStop(line, startLine) || line == 0) {
                 st.reason = "next"
                 return st
             }
@@ -641,6 +661,22 @@ object CDebugger {
 
     // ------------------------------------------------------------ 地址 → 行
 
+    /**
+     * 这一行该不该停下来：必须是换了行、而且不是一个只有括号的空行。
+     * clang -O0 会把 for 的 i++ 记在 `}` 那一行上，单步停在那里看起来像「跳没了」，
+     * 所以这种行直接跳过去，继续走。
+     */
+    private fun isStepStop(line: Int, startLine: Int): Boolean =
+        line != 0 && line != startLine && !isTrivialLine(line)
+
+    /** 只有 { } }; ) 这类符号、没有语句的行 */
+    private fun isTrivialLine(line: Int): Boolean {
+        if (line <= 0) return true
+        val text = srcLines.getOrNull(line - 1)?.trim() ?: return false
+        if (text.isEmpty()) return true
+        return text == "{" || text == "}" || text == "};" || text == ")" || text == ");"
+    }
+
     /** pc（相对加载基址）对应的源码行；0 表示不在当前文件的源码里 */
     private fun lineAt(rel: Long): Int {
         if (rel <= 0 || table.isEmpty()) return 0
@@ -695,6 +731,29 @@ object CDebugger {
         val s = stackReturn(gdb, regs)
         if (s != null && inOwnText(s)) return s
         return null
+    }
+
+    /**
+     * 已经走进没有源码的调用（PLT 桩、库函数）时：在返回地址下临时断点跑回来。
+     * 跑不成（没有返回地址 / 插不上断点）返回 null，交给调用方退回逐条指令。
+     */
+    private fun skipCall(gdb: GdbClient, st: Stop): Stop? {
+        val ret = callReturn(gdb, st.regs) ?: return null
+        if (ret == st.pc()) return null
+        if (insertedBpAt(ret) != null) {
+            // 返回地址上本来就有断点，继续就会停在那里
+            val r = Stop(gdb.send("c"))
+            readRegs(gdb, r)
+            if (!r.exited && !r.error) curPc = r.pc()
+            return r
+        }
+        if (!tempBpInsert(gdb, ret)) return null
+        val r = Stop(gdb.send("c"))
+        tempBpRemove(gdb, ret)
+        if (r.exited || r.error) return r
+        readRegs(gdb, r)
+        if (!r.exited && !r.error) curPc = r.pc()
+        return r
     }
 
     /**
