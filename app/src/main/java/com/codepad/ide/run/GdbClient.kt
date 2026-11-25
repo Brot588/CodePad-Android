@@ -8,11 +8,18 @@ import java.net.Socket
 /**
  * 极简 GDB Remote Serial Protocol 客户端（够用版）：
  * qSupported / ? / Z0 / z0 / c / s / g / m / k
+ *
+ * 单步是「一条条指令」走的，所以读寄存器（g）和读 PC 会被频繁调用，
+ * 这里都按 gdbserver 的原始回包处理（含 RLE 解码）。
  */
 class GdbClient(private val socket: Socket) {
 
     private val input = BufferedInputStream(socket.getInputStream())
     private val out: OutputStream = socket.getOutputStream()
+
+    /** 目标进程自己往 RSP 通道写的输出（O 包），一般走 PTY，这里兜底 */
+    @Volatile
+    var onConsole: ((String) -> Unit)? = null
 
     private fun checksum(s: String): Int {
         var sum = 0
@@ -27,7 +34,24 @@ class GdbClient(private val socket: Socket) {
         return readPacket()
     }
 
+    /** 读一个「真正的回复」：跳过 O 包（目标输出）和 % 通知包 */
     private fun readPacket(): String {
+        while (true) {
+            val body = readRawPacket()
+            when {
+                // 注意 "OK" 是标准回复，不是 O 包（O 包后面跟的是十六进制）
+                body.startsWith("O") && body != "OK" -> {
+                    onConsole?.invoke(hexToText(body.substring(1)))
+                }
+                body.startsWith("%") -> {
+                    // 通知包（例如线程创建/退出），这里不需要
+                }
+                else -> return body
+            }
+        }
+    }
+
+    private fun readRawPacket(): String {
         while (true) {
             val c = input.read()
             if (c < 0) throw IOException("gdbserver 连接已关闭")
@@ -53,7 +77,7 @@ class GdbClient(private val socket: Socket) {
         }
     }
 
-    /** 读全部通用寄存器（g 包，RLE 解码后前 34 个 8 字节） */
+    /** 读全部通用寄存器（g 包，RLE 解码后前 34 个 8 字节；aarch64 顺序 x0..x30, sp, pc, cpsr） */
     fun readRegisters(): LongArray? {
         val raw = send("g")
         if (raw.isEmpty() || raw[0] == 'E') return null
@@ -65,15 +89,6 @@ class GdbClient(private val socket: Socket) {
             regs[i] = parseLittleEndian(hex.substring(i * 16, (i + 1) * 16))
         }
         return regs
-    }
-
-    /** 直接读 PC 寄存器（p 包，避免 g 包的 RLE 与超长寄存器表） */
-    fun readPcFast(): Long {
-        val rep = send("p20")
-        if (rep.isEmpty() || rep[0] == 'E') return -1
-        val hex = decodeRle(rep).replace(" ", "")
-        if (hex.length < 16) return -1
-        return parseLittleEndian(hex.substring(0, 16))
     }
 
     fun readMemory(addr: Long, len: Int): ByteArray? {
@@ -97,24 +112,8 @@ class GdbClient(private val socket: Socket) {
         for (i in 0 until 8) v = v or ((bytes[i].toLong() and 0xff) shl (8 * i))
         return v
     }
-    /** 读 PC：gdbserver 的 g 包会做 RLE 压缩，先解码再取第 33 个 8 字节寄存器 */
-    fun readPc(): Long {
-        val raw = send("g")
-        if (raw.isEmpty() || raw[0] == 'E') return -1
-        val hex = decodeRle(raw)
-        if (hex.length >= 34 * 16) {
-            val dbg = StringBuilder("gregs:")
-            for (i in 29..33) dbg.append(" ").append(i).append("=").append(java.lang.Long.toHexString(parseLittleEndian(hex.substring(i * 16, (i + 1) * 16))))
-            android.util.Log.i("CodePadRSP", dbg.toString() + " len=" + hex.length / 16)
-        }
-        if (hex.length < 33 * 16) {
-            android.util.Log.w("CodePadRSP", "g too short: " + hex.length)
-            return -1
-        }
-        return parseLittleEndian(hex.substring(32 * 16, 33 * 16))
-    }
 
-    /** GDB remote 的游程编码：c*<n> 表示把 c 重复 (n-29) 次 */
+    /** GDB remote 的游程编码：c*<n> 表示把 c 再重复 (n-29) 次（c 本身已经出现一次） */
     private fun decodeRle(text: String): String {
         val sb = StringBuilder(text.length)
         var i = 0
@@ -133,6 +132,17 @@ class GdbClient(private val socket: Socket) {
         return sb.toString()
     }
 
+    private fun hexToText(hex: String): String {
+        val sb = StringBuilder(hex.length / 2)
+        var i = 0
+        while (i + 1 < hex.length) {
+            val b = hex.substring(i, i + 2).toIntOrNull(16) ?: break
+            sb.append(b.toChar())
+            i += 2
+        }
+        return sb.toString()
+    }
+
     private fun parseLittleEndian(hex: String): Long {
         var value = 0L
         var i = 0
@@ -144,36 +154,6 @@ class GdbClient(private val socket: Socket) {
             byteIndex++
         }
         return if (byteIndex == 0) -1 else value
-    }
-
-    companion object {
-        /** 从 T 包（如 T05...;20:74 47 55 55 55 55 00 00;...）里取 PC */
-        fun pcFromReply(reply: String): Long? {
-            val idx = reply.indexOf("20:")
-            if (idx < 0) {
-                // 也兼容 thread:p..; 形式下的寄存器顺序，逐个找像代码地址的值
-                return null
-            }
-            var i = idx + 3
-            val sb = StringBuilder()
-            while (i < reply.length && reply[i] != ';') {
-                val c = reply[i]
-                if (c != '*') sb.append(c)
-                i++
-            }
-            val hex = sb.toString().replace(" ", "")
-            if (hex.length < 16) return null
-            return parseLe(hex)
-        }
-
-        private fun parseLe(hex: String): Long? {
-            var v = 0L
-            for (k in 0 until 8) {
-                val b = hex.substring(k * 2, k * 2 + 2).toIntOrNull(16) ?: return null
-                v = v or (b.toLong() shl (8 * k))
-            }
-            return v
-        }
     }
 
     fun close() {

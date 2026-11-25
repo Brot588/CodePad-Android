@@ -635,6 +635,11 @@ object CToolchain {
     fun addressForLine(table: List<Pair<Long, Int>>, line: Int): Long? =
         table.firstOrNull { it.second == line }?.first
 
+    /**
+     * pc 落在行表里的哪一行：取最后一条「起始地址 <= pc」的记录。
+     * 注意：超出最后一条记录（例如停在库函数里）时它会返回最后一行的行号，
+     * 调用方（CDebugger.lineAt）要用函数范围和可执行段把这种越界情况挡掉。
+     */
     fun lineForAddress(table: List<Pair<Long, Int>>, pc: Long): Int? {
         var best: Int? = null
         for (row in table) {
@@ -642,45 +647,5 @@ object CToolchain {
             best = row.second
         }
         return best
-    }
-
-    /**
-     * pc 所在的源码行对应的地址区间 [start, end)。
-     * 范围单步（vCont;r）用它：只走完这一行的指令，离开区间就停，
-     * 这样 for 循环的回边不会被误判成「还在同一行」而一路走到 return。
-     */
-    /** 当前行之后的第一条其它源码行的起始地址（用于「单步跳过」的临时断点） */
-    fun nextLineAddress(
-        table: List<Pair<Long, Int>>,
-        pc: Long,
-        trivial: (Int) -> Boolean = { false },
-    ): Long? {
-        var line = -1
-        for (row in table) {
-            if (row.first > pc) break
-            line = row.second
-        }
-        if (line <= 0) return null
-        for (row in table) {
-            if (row.first > pc && row.second != line && !trivial(row.second)) return row.first
-        }
-        return null
-    }
-
-    fun lineRange(table: List<Pair<Long, Int>>, pc: Long): Pair<Long, Long>? {
-        if (table.isEmpty()) return null
-        var idx = -1
-        var line = -1
-        for (i in table.indices) {
-            if (table[i].first > pc) break
-            idx = i
-            line = table[i].second
-        }
-        if (idx < 0 || line <= 0) return null
-        val start = table[idx].first
-        for (j in idx + 1 until table.size) {
-            if (table[j].second != line) return start to table[j].first
-        }
-        return start to (table.last().first + 4)
     }
 }

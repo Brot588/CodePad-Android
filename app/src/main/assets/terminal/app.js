@@ -50,14 +50,22 @@
   term.loadAddon(fit);
   term.open(document.getElementById('term'));
 
-  function syncSize() {
+  function pushSize() {
     try {
-      fit.fit();
       if (window.Android && window.Android.resize) {
         window.Android.resize(term.cols, term.rows);
       }
     } catch (e) {}
   }
+
+  function syncSize() {
+    try { fit.fit(); } catch (e) {}
+    // fit() 失败也要把当前尺寸推过去，否则 PTY 会一直停在 24x80
+    pushSize();
+  }
+
+  // xterm 自己算出新行列时同步给 PTY（fit / 字体变化都会触发）
+  term.onResize(function () { pushSize(); });
 
   term.onData(function (data) {
     try {
@@ -76,7 +84,10 @@
   },
     term: {
       write: function (b64) { term.write(b64ToBytes(b64)); },
+      // clear() 按 xterm 的语义会「保留当前行」，正好是提示符那一行；
+      // 所以要整屏清干净（重启终端）必须用 reset()
       clear: function () { term.clear(); },
+      reset: function () { term.reset(); },
       fit: syncSize,
       focus: function () { term.focus(); }
     }
@@ -91,4 +102,7 @@
     syncSize();
     if (window.Android && window.Android.ready) window.Android.ready();
   }, 80);
+  // WebView 刚挂上时可能还没尺寸，布局稳定后再对两次
+  setTimeout(syncSize, 400);
+  setTimeout(syncSize, 1200);
 })();

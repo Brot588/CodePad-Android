@@ -16,6 +16,9 @@ data class DwarfVar(
     val location: DwarfLocation,
     val typeName: String,
     val typeOffset: Long = 0,
+    /** 声明所在行：还没执行到声明处时不显示，避免看到栈上垃圾值 */
+    val declLine: Int = 0,
+    val declFile: String = "",
 )
 
 data class DwarfMember(
@@ -52,8 +55,16 @@ class DwarfInfo(
 
     fun baseTypeByName(name: String): DwarfType? =
         types.values.firstOrNull { it.name == name && it.tag == "DW_TAG_base_type" }
-    fun at(addr: Long): DwarfFunc? =
-        funcs.firstOrNull { addr >= it.low && addr < it.high }
+    fun at(addr: Long): DwarfFunc? {
+        // 闭包 / 嵌套函数（Rust 的 {{closure}}、C 的嵌套函数）区间会落在外层函数里，
+        // 取范围最小（最具体）的那个，否则会把嵌套函数的代码算到外层函数头上
+        var best: DwarfFunc? = null
+        for (f in funcs) {
+            if (addr < f.low || addr >= f.high) continue
+            if (best == null || (f.high - f.low) < (best.high - best.low)) best = f
+        }
+        return best
+    }
 
     fun all(): List<DwarfFunc> = funcs
 }
@@ -135,7 +146,16 @@ object DwarfParser {
                     val name = str(child.attrs["name"]) ?: continue
                     val loc = parseLocation(child.attrs["location"]) ?: continue
                     val typeName = typeName(child.attrs["type"]) ?: "int"
-                    out.add(DwarfVar(name, loc, typeName, typeOffset(child.attrs["type"])))
+                    out.add(
+                        DwarfVar(
+                            name = name,
+                            location = loc,
+                            typeName = typeName,
+                            typeOffset = typeOffset(child.attrs["type"]),
+                            declLine = decLine(child.attrs["decl_line"]),
+                            declFile = str(child.attrs["decl_file"]) ?: "",
+                        )
+                    )
                 }
                 "DW_TAG_subprogram" -> {
                     // 嵌套函数单独处理
@@ -149,6 +169,13 @@ object DwarfParser {
         if (raw == null) return 0
         val token = raw.trim().substringBefore(' ').substringBefore('\t')
         return token.removePrefix("0x").toLongOrNull(16) ?: 0
+    }
+
+    /** DW_AT_decl_line：llvm-dwarfdump 打的是 (12) 这种十进制 */
+    private fun decLine(raw: String?): Int {
+        if (raw == null) return 0
+        val token = raw.trim().substringBefore(' ').substringBefore('\t')
+        return token.toIntOrNull() ?: token.removePrefix("0x").toIntOrNull(16) ?: 0
     }
 
     private fun collectTypes(die: Die, out: MutableMap<Long, DwarfType>) {

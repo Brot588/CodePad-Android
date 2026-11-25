@@ -41,6 +41,9 @@ class TerminalSession(
                     while (!closed) {
                         val n = input!!.read(buf)
                         if (n <= 0) break
+                        // 已经 close（重启/关闭终端）时不要再往外吐，否则旧 shell 的尾巴
+                        // 会落到新终端上
+                        if (closed) break
                         if (n == buf.size) onOutput(buf) else onOutput(buf.copyOf(n))
                     }
                 } catch (_: Throwable) {

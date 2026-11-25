@@ -509,16 +509,42 @@ class IdeController(private val activity: MainActivity) {
         private set
     var debugPaused by mutableStateOf(false)
         private set
+    /** 是否已经停过至少一次（决定面板显示「准备中」还是变量/调用栈） */
+    var debugStarted by mutableStateOf(false)
+        private set
     var debugReason by mutableStateOf("")
     var debugPrep by mutableStateOf("")
         private set
     var debugLine by mutableStateOf(0)
+        private set
+    /** 暂停点的补充说明：停在库里、停在其他文件、收到信号等 */
+    var debugNote by mutableStateOf("")
+        private set
+    /** 当前帧的函数名（没有源码行时也能量出「停在哪」） */
+    var debugFunc by mutableStateOf("")
+        private set
+    /** 暂停点所在的源文件名（防止用户切了标签页后状态栏显示错文件） */
+    var debugFile by mutableStateOf("")
         private set
     var debugVars by mutableStateOf<List<Pair<String, String>>>(emptyList())
         private set
     var debugStack by mutableStateOf<List<String>>(emptyList())
     var debugOut by mutableStateOf("")
         private set
+
+    /** 调试面板顶栏的一行状态：单步跳过 · main.c:6 */
+    val debugWhere: String
+        get() {
+            val name = debugFile.ifBlank { active?.name ?: "" }
+            val at = when {
+                debugLine > 0 -> "$name:$debugLine"
+                debugFunc.isNotBlank() -> debugFunc
+                else -> ""
+            }
+            return listOf(debugReason, at, debugNote)
+                .filter { it.isNotBlank() }
+                .joinToString(" · ")
+        }
 
     fun startDebug() {
         val f = active ?: run {
@@ -547,8 +573,12 @@ class IdeController(private val activity: MainActivity) {
         bottomTab = DEBUG_TAB
         debugActive = true
         debugPaused = false
+        debugStarted = false
         debugReason = Loc.t("启动中…")
         debugLine = 0
+        debugNote = ""
+        debugFunc = ""
+        debugFile = ""
         debugVars = emptyList()
         debugStack = emptyList()
         debugOut = ""
@@ -593,8 +623,12 @@ class IdeController(private val activity: MainActivity) {
         bottomTab = DEBUG_TAB
         debugActive = true
         debugPaused = false
+        debugStarted = false
         debugReason = Loc.t("准备中…")
         debugLine = 0
+        debugNote = ""
+        debugFunc = ""
+        debugFile = ""
         debugVars = emptyList()
         debugStack = emptyList()
         DebugBridge.listener = { json -> ui { onDebugState(json) } }
@@ -672,14 +706,19 @@ class IdeController(private val activity: MainActivity) {
         when (o.optString("type")) {
             "pause" -> {
                 debugPaused = true
+                debugStarted = true
                 debugReason = when (o.optString("reason")) {
                     "breakpoint" -> Loc.t("断点")
                     "step" -> Loc.t("单步进入")
                     "next" -> Loc.t("单步跳过")
                     "return" -> Loc.t("跳出")
+                    "signal" -> Loc.t("信号")
                     else -> o.optString("reason")
                 }
                 debugLine = o.optInt("line", 0)
+                debugNote = o.optString("note", "")
+                debugFunc = o.optString("func", "")
+                debugFile = o.optString("file", "").substringAfterLast('/')
                 val vars = ArrayList<Pair<String, String>>()
                 o.optJSONArray("vars")?.let { arr ->
                     for (i in 0 until arr.length()) {
@@ -718,7 +757,7 @@ class IdeController(private val activity: MainActivity) {
     }
 
     fun debugStepOver() {
-        if (isNativeDebug()) cCommand("s") else debugSend("next")
+        if (isNativeDebug()) cCommand("n") else debugSend("next")
     }
 
     fun debugStepInto() {
@@ -726,7 +765,7 @@ class IdeController(private val activity: MainActivity) {
     }
 
     fun debugStepOut() {
-        if (isNativeDebug()) cCommand("s") else debugSend("return")
+        if (isNativeDebug()) cCommand("u") else debugSend("return")
     }
 
     fun debugStop() {
@@ -761,10 +800,14 @@ class IdeController(private val activity: MainActivity) {
         bottomTab = TERMINAL_TAB
         debugActive = false
         debugPaused = false
+        debugStarted = false
         debugReason = message
         debugVars = emptyList()
         debugStack = emptyList()
         debugLine = 0
+        debugNote = ""
+        debugFunc = ""
+        debugFile = ""
         js("CP.clearDebugLine()")
         DebugBridge.reset()
     }
@@ -1298,7 +1341,7 @@ class IdeController(private val activity: MainActivity) {
     fun ensureTerminal() {
         if (::session.isInitialized && session.running) return
         session = newSession()
-        if (terminalReady) startSession()
+        if (terminalReady) startSessionIn(null)
     }
 
     private fun newSession(): TerminalSession = TerminalSession(
@@ -1360,25 +1403,6 @@ class IdeController(private val activity: MainActivity) {
         }
     }
 
-    private fun startSession() {
-        prepareCargo()
-        val cwd = project?.dir ?: App.ctx.filesDir
-        val env = arrayOf(
-            "HOME=" + cwd.absolutePath,
-            "PATH=" + App.ctx.filesDir.absolutePath + "/bin:" + com.codepad.ide.run.CToolchain.root.absolutePath + "/bin:/system/bin:/system/xbin",
-            "CARGO_HOME=" + java.io.File(App.ctx.filesDir, "cargo-home").apply { mkdirs() }.absolutePath,
-            "TERM=xterm-256color",
-            "LANG=C.UTF-8",
-            "TMPDIR=" + App.ctx.cacheDir.absolutePath,
-            "ENV=" + shellInitFile().absolutePath,
-            "CODEPAD_PROJECT=" + (project?.name ?: "CodePad"),
-        )
-        val ok = session.start(cwd.absolutePath, 24, 80, env)
-        if (!ok) {
-            appendTerminal("\u001b[31m" + Loc.t("PTY 启动失败 (libptybridge.so)") + "\u001b[0m\r\n")
-        }
-    }
-
     fun onTerminalReady() {
         terminalReady = true
         applyTerminalSettings()
@@ -1417,22 +1441,25 @@ class IdeController(private val activity: MainActivity) {
 
     fun clearTerminal() = termJs("CP.term.clear()")
 
+    /** 整屏重置（滚屏、字符属性、alt screen 一起清掉）。重启终端必须用这个：
+     *  清屏用的 CP.term.clear() 会保留当前提示符那一行，新 shell 的提示符会接在旧行后面 */
+    fun resetTerminal() = termJs("CP.term.reset()")
+
     fun restartTerminal(cwd: java.io.File? = null) {
         try {
             session.close()
         } catch (_: Throwable) {
         }
         session = newSession()
-        clearTerminal()
-        if (terminalReady) {
-            terminalWorkingDir = cwd
-            startSessionIn(cwd)
-        }
+        terminalWorkingDir = cwd
+        resetTerminal()
+        if (terminalReady) startSessionIn(cwd)
     }
 
     private var terminalWorkingDir: File? = null
 
     private fun startSessionIn(cwd: File?) {
+        prepareCargo()
         val dir = cwd ?: terminalWorkingDir ?: project?.dir ?: App.ctx.filesDir
         terminalWorkingDir = dir
         val env = arrayOf(
@@ -1445,7 +1472,13 @@ class IdeController(private val activity: MainActivity) {
             "ENV=" + shellInitFile().absolutePath,
             "CODEPAD_PROJECT=" + (project?.name ?: "CodePad"),
         )
-        session.start(dir.absolutePath, 24, 80, env)
+        if (!session.start(dir.absolutePath, 24, 80, env)) {
+            val msg = if (com.codepad.ide.term.Pty.loaded) Loc.t("终端启动失败") else Loc.t("PTY 启动失败 (libptybridge.so)")
+            appendTerminal("\u001b[31m" + msg + "\u001b[0m\r\n")
+        } else {
+            // 新 PTY 默认 24x80，按终端实际行列再同步一次（长命令换行才不会错位）
+            termJs("CP.term.fit()")
+        }
     }
 
     // --------------------------------------------------------------- 编辑器

@@ -866,12 +866,13 @@ private fun BottomDock(c: IdeController, panelHeight: Int) {
                 }
             } else {
                 if (c.debugActive) {
-                    if (c.debugPaused) {
-                        DebugBtn(Icons.Filled.PlayArrow, Loc.t("继续"), Green) { c.debugContinue() }
-                        DebugBtn(Icons.Filled.SkipNext, Loc.t("单步跳过")) { c.debugStepOver() }
-                        DebugBtn(Icons.Filled.ArrowDownward, Loc.t("单步进入")) { c.debugStepInto() }
-                        DebugBtn(Icons.Filled.ArrowUpward, Loc.t("跳出")) { c.debugStepOut() }
-                    }
+                    // 按钮位置固定：单步时整个面板不会因为按钮消失/挪位而跳一下。
+                    // 单步按钮一直可点：连点几下会把命令排队，程序一条条走完，不会漏掉点击。
+                    val on = c.debugPaused
+                    DebugBtn(Icons.Filled.PlayArrow, Loc.t("继续"), if (on) Green else Muted.copy(alpha = 0.35f), enabled = on) { c.debugContinue() }
+                    DebugBtn(Icons.Filled.SkipNext, Loc.t("单步跳过"), Muted) { c.debugStepOver() }
+                    DebugBtn(Icons.Filled.ArrowDownward, Loc.t("单步进入"), Muted) { c.debugStepInto() }
+                    DebugBtn(Icons.Filled.ArrowUpward, Loc.t("跳出"), Muted) { c.debugStepOut() }
                     DebugBtn(Icons.Filled.Stop, Loc.t("停止"), Color(0xFFFF8A80)) { c.debugStop() }
                 }
             }
@@ -918,8 +919,14 @@ private fun DockTab(label: String, active: Boolean, onClick: () -> Unit) {
 }
 
 @Composable
-private fun DebugBtn(icon: ImageVector, label: String, tint: Color = Muted, onClick: () -> Unit) {
-    IconButton(onClick = onClick, modifier = Modifier.size(28.dp)) {
+private fun DebugBtn(
+    icon: ImageVector,
+    label: String,
+    tint: Color = Muted,
+    enabled: Boolean = true,
+    onClick: () -> Unit,
+) {
+    IconButton(onClick = onClick, enabled = enabled, modifier = Modifier.size(28.dp)) {
         Icon(icon, contentDescription = label, tint = tint, modifier = Modifier.size(16.dp))
     }
 }
@@ -1141,7 +1148,7 @@ private fun DebugContent(c: IdeController) {
         }
         return
     }
-    if (!c.debugPaused) {
+    if (!c.debugStarted) {
         Box(
             Modifier.fillMaxSize().background(Color(0xFF141821)),
             contentAlignment = Alignment.Center,
@@ -1166,64 +1173,81 @@ private fun DebugContent(c: IdeController) {
         return
     }
 
-    Row(Modifier.fillMaxSize().background(Color(0xFF141821))) {
-        Column(Modifier.weight(1f).fillMaxHeight().padding(horizontal = 8.dp, vertical = 6.dp)) {
-            Text(Loc.t("变量"), fontSize = 10.sp, color = Muted, fontWeight = FontWeight.SemiBold)
-            Spacer(Modifier.height(4.dp))
-            LazyColumn {
-                items(c.debugVars) { pair ->
-                    Row {
+    Column(Modifier.fillMaxSize().background(Color(0xFF141821))) {
+        // 一行状态：单步跳过 · main.c:6（停在库里时后面还会跟一句说明）
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 3.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                c.debugWhere,
+                fontSize = 10.sp,
+                color = Color(0xFF82AAFF),
+                fontFamily = FontFamily.Monospace,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        HorizontalDivider(color = Stroke)
+        Row(Modifier.weight(1f).fillMaxWidth()) {
+            Column(Modifier.weight(1f).fillMaxHeight().padding(horizontal = 8.dp, vertical = 6.dp)) {
+                Text(Loc.t("变量"), fontSize = 10.sp, color = Muted, fontWeight = FontWeight.SemiBold)
+                Spacer(Modifier.height(4.dp))
+                LazyColumn {
+                    items(c.debugVars) { pair ->
+                        Row {
+                            Text(
+                                pair.first,
+                                fontSize = 11.sp,
+                                color = Color(0xFF82AAFF),
+                                fontFamily = FontFamily.Monospace,
+                            )
+                            Text(" = ", fontSize = 11.sp, color = Muted)
+                            Text(
+                                pair.second,
+                                fontSize = 11.sp,
+                                color = Color(0xFFC2C9D6),
+                                fontFamily = FontFamily.Monospace,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                            if (pair.second.trim().matches(Regex("^-?\\d{7,}$"))) {
+                                Text(Loc.t("(可能未初始化) "), fontSize = 9.sp, color = Color(0xFF6B7280))
+                            }
+                        }
+                    }
+                }
+            }
+            Box(Modifier.width(1.dp).fillMaxHeight().background(Stroke))
+            Column(Modifier.weight(1.2f).fillMaxHeight().padding(horizontal = 8.dp, vertical = 6.dp)) {
+                Text(Loc.t("输出"), fontSize = 10.sp, color = Muted, fontWeight = FontWeight.SemiBold)
+                Spacer(Modifier.height(4.dp))
+                val scroll = rememberScrollState()
+                LaunchedEffect(c.debugOut) { scroll.animateScrollTo(scroll.maxValue) }
+                Column(Modifier.fillMaxSize().verticalScroll(scroll)) {
+                    Text(
+                        c.debugOut.ifBlank { "（程序没有输出）" },
+                        fontSize = 11.sp,
+                        color = Color(0xFFC2C9D6),
+                        fontFamily = FontFamily.Monospace,
+                    )
+                }
+            }
+            Box(Modifier.width(1.dp).fillMaxHeight().background(Stroke))
+            Column(Modifier.weight(1f).fillMaxHeight().padding(horizontal = 8.dp, vertical = 6.dp)) {
+                Text(Loc.t("调用栈"), fontSize = 10.sp, color = Muted, fontWeight = FontWeight.SemiBold)
+                Spacer(Modifier.height(4.dp))
+                LazyColumn {
+                    items(c.debugStack) { frame ->
                         Text(
-                            pair.first,
-                            fontSize = 11.sp,
-                            color = Color(0xFF82AAFF),
-                            fontFamily = FontFamily.Monospace,
-                        )
-                        Text(" = ", fontSize = 11.sp, color = Muted)
-                        Text(
-                            pair.second,
+                            frame,
                             fontSize = 11.sp,
                             color = Color(0xFFC2C9D6),
                             fontFamily = FontFamily.Monospace,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
-                        if (pair.second.trim().matches(Regex("^-?\\d{7,}$"))) {
-                            Text(Loc.t("(可能未初始化) "), fontSize = 9.sp, color = Color(0xFF6B7280))
-                        }
                     }
-                }
-            }
-        }
-        Box(Modifier.width(1.dp).fillMaxHeight().background(Stroke))
-        Column(Modifier.weight(1.2f).fillMaxHeight().padding(horizontal = 8.dp, vertical = 6.dp)) {
-            Text(Loc.t("输出"), fontSize = 10.sp, color = Muted, fontWeight = FontWeight.SemiBold)
-            Spacer(Modifier.height(4.dp))
-            val scroll = rememberScrollState()
-            LaunchedEffect(c.debugOut) { scroll.animateScrollTo(scroll.maxValue) }
-            Column(Modifier.fillMaxSize().verticalScroll(scroll)) {
-                Text(
-                    c.debugOut.ifBlank { "（程序没有输出）" },
-                    fontSize = 11.sp,
-                    color = Color(0xFFC2C9D6),
-                    fontFamily = FontFamily.Monospace,
-                )
-            }
-        }
-        Box(Modifier.width(1.dp).fillMaxHeight().background(Stroke))
-        Column(Modifier.weight(1f).fillMaxHeight().padding(horizontal = 8.dp, vertical = 6.dp)) {
-            Text(Loc.t("调用栈"), fontSize = 10.sp, color = Muted, fontWeight = FontWeight.SemiBold)
-            Spacer(Modifier.height(4.dp))
-            LazyColumn {
-                items(c.debugStack) { frame ->
-                    Text(
-                        frame,
-                        fontSize = 11.sp,
-                        color = Color(0xFFC2C9D6),
-                        fontFamily = FontFamily.Monospace,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
                 }
             }
         }
