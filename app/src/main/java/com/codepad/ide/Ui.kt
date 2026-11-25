@@ -313,38 +313,6 @@ fun IdeScreen(c: IdeController) {
                             tint = if (c.searchOpen) Green else Muted,
                         )
                     }
-                    if (c.runner.canStop) {
-                        IconButton(onClick = { c.runner.stop() }) {
-                            Icon(Icons.Filled.Stop, contentDescription = "停止", tint = Green)
-                        }
-                    }
-                    IconButton(onClick = { c.startDebug() }) {
-                        Icon(
-                            Icons.Filled.BugReport,
-                            contentDescription = "调试",
-                            tint = if (c.debugActive) Green else Muted,
-                        )
-                    }
-                    IconButton(onClick = { c.js("CP.requestRun()") }) {
-                        Icon(
-                            Icons.Filled.PlayArrow,
-                            contentDescription = "运行",
-                            tint = if (c.runner.canStop) Green else Muted,
-                        )
-                    }
-                    IconButton(onClick = { c.js("CP.requestSave()") }) {
-                        Icon(Icons.Filled.Save, contentDescription = "保存", tint = Muted)
-                    }
-                    IconButton(onClick = {
-                        c.showTerminal = !c.showTerminal
-                        c.ensureTerminal()
-                    }) {
-                        Icon(
-                            Icons.Filled.Terminal,
-                            contentDescription = "终端",
-                            tint = if (c.showTerminal) Green else Muted,
-                        )
-                    }
                     Box {
                         var projectOpen by remember { mutableStateOf(false) }
                         IconButton(onClick = { projectOpen = true }) {
@@ -398,6 +366,40 @@ fun IdeScreen(c: IdeController) {
                             )
                         }
                     }
+                    IconButton(onClick = { c.js("CP.requestSave()") }) {
+                        Icon(Icons.Filled.Save, contentDescription = "保存", tint = Muted)
+                    }
+                    IconButton(onClick = {
+                        c.showTerminal = !c.showTerminal
+                        c.ensureTerminal()
+                    }) {
+                        Icon(
+                            Icons.Filled.Terminal,
+                            contentDescription = "终端",
+                            tint = if (c.showTerminal) Green else Muted,
+                        )
+                    }
+                    IconButton(onClick = { c.startDebug() }) {
+                        Icon(
+                            Icons.Filled.BugReport,
+                            contentDescription = "调试",
+                            tint = if (c.debugActive) Green else Muted,
+                        )
+                    }
+                    if (c.runner.canStop) {
+                        IconButton(onClick = { c.runner.stop() }) {
+                            Icon(Icons.Filled.Stop, contentDescription = "停止", tint = Green)
+                        }
+                    } else {
+                        IconButton(onClick = { c.js("CP.requestRun()") }) {
+                            Icon(
+                                Icons.Filled.PlayArrow,
+                                contentDescription = "运行",
+                                tint = Muted,
+                            )
+                        }
+                    }
+
                     Box {
                         IconButton(onClick = { menuOpen = true }) {
                             Icon(
