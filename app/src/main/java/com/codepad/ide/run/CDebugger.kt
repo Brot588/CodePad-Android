@@ -23,6 +23,9 @@ object CDebugger {
     private var serverPidRef: Int = 0
     private var inferiorPid: Int = 0
 
+    /** 当前线程的 RSP 标识，范围单步需要带上它 */
+    private var threadSpec: String = ""
+
     /** 被调试程序的标准输出（gdbserver 会转发到它的 stdout） */
     var onOutput: ((String) -> Unit)? = null
     private var client: GdbClient? = null
@@ -243,8 +246,9 @@ object CDebugger {
                     hits.forEach { gdb.send("Z0,%x,4".format(it)) }
                 }
             }
-            val reply = gdb.send(command)
-            Log.i("CodePadRSP", cmd_reply_log(command, reply))
+            val reply: String = if (command == "s" || command == "n") gdb.send("s") else gdb.send(command)
+            Regex("thread:([^;]+)").find(reply)?.let { threadSpec = it.groupValues[1] }
+            Log.i("CodePadRSP", cmd_reply_log(command + " (" + reply.take(12) + ")", reply))
             if (reply.startsWith("W") || reply.startsWith("X")) {
                 val code = reply.removePrefix("W").substring(0, 2).toIntOrNull(16) ?: 0
                 log(Loc.t("程序退出，退出码 %s", code))

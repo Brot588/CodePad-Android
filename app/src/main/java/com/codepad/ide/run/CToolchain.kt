@@ -643,4 +643,26 @@ object CToolchain {
         }
         return best
     }
+
+    /**
+     * pc 所在的源码行对应的地址区间 [start, end)。
+     * 范围单步（vCont;r）用它：只走完这一行的指令，离开区间就停，
+     * 这样 for 循环的回边不会被误判成「还在同一行」而一路走到 return。
+     */
+    fun lineRange(table: List<Pair<Long, Int>>, pc: Long): Pair<Long, Long>? {
+        if (table.isEmpty()) return null
+        var idx = -1
+        var line = -1
+        for (i in table.indices) {
+            if (table[i].first > pc) break
+            idx = i
+            line = table[i].second
+        }
+        if (idx < 0 || line <= 0) return null
+        val start = table[idx].first
+        for (j in idx + 1 until table.size) {
+            if (table[j].second != line) return start to table[j].first
+        }
+        return start to (table.last().first + 4)
+    }
 }
