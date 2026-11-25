@@ -1289,7 +1289,6 @@ class IdeController(private val activity: MainActivity) {
     fun ensureTerminal() {
         if (::session.isInitialized && session.running) return
         session = newSession()
-        loadSettings()
         if (terminalReady) startSession()
     }
 
@@ -1592,11 +1591,28 @@ class IdeController(private val activity: MainActivity) {
     }
 
     fun js(code: String) {
-        editorView?.evaluateJavascript(code, null)
+        evalOn(editorView, code)
     }
 
     fun termJs(code: String) {
-        terminalView?.evaluateJavascript(code, null)
+        evalOn(terminalView, code)
+    }
+
+    /** WebView 的方法只能在主线程调；从 JS 桥线程直接调会抛 Java 异常，
+     *  而异常会中断调用方（例如终端 ready 回调），导致 PTY 会话起不来。 */
+    private fun evalOn(view: WebView?, code: String) {
+        if (view == null) return
+        val run = {
+            try {
+                view.evaluateJavascript(code, null)
+            } catch (_: Throwable) {
+            }
+        }
+        if (android.os.Looper.myLooper() == android.os.Looper.getMainLooper()) {
+            run()
+        } else {
+            activity.runOnUiThread(run)
+        }
     }
 
     fun ui(block: () -> Unit) {
@@ -1660,6 +1676,7 @@ class IdeController(private val activity: MainActivity) {
     // 放到最后：确保所有 Compose 状态属性都已初始化，避免 init 里访问到 null 委托
     init {
         session = newSession()
+        loadSettings()
         val p = Projects.bootstrap()
         switchProject(p, persist = false)
     }
