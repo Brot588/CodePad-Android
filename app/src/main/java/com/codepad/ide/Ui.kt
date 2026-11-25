@@ -269,34 +269,31 @@ fun IdeScreen(c: IdeController) {
                             }
                         }
                     } else {
-                        Column {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(
-                                    text = c.active?.name ?: (c.project?.name ?: "CodePad"),
-                                    fontSize = 15.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = c.active?.name ?: (c.project?.name ?: "CodePad"),
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f, fill = false),
+                            )
+                            if (c.dirty) {
+                                Box(
+                                    Modifier
+                                        .padding(start = 6.dp)
+                                        .size(7.dp)
+                                        .background(Accent, RoundedCornerShape(50))
                                 )
-                                if (c.dirty) {
-                                    Box(
-                                        Modifier
-                                            .padding(start = 6.dp)
-                                            .size(7.dp)
-                                            .background(Accent, RoundedCornerShape(50))
-                                    )
-                                }
-                                if (c.active != null) {
-                                    Spacer(Modifier.width(8.dp))
-                                    Text(c.activeLang?.name ?: "", fontSize = 11.sp, color = Muted)
-                                }
                             }
-                            if (c.active != null) {
+                            if (c.active != null && !c.project?.name.isNullOrBlank()) {
+                                Spacer(Modifier.width(8.dp))
                                 Text(
                                     text = c.project?.name ?: "",
-                                    fontSize = 10.sp,
+                                    fontSize = 11.sp,
                                     color = Color(0xFF5C6773),
                                     maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
                                 )
                             }
                         }
