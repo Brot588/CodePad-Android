@@ -1523,6 +1523,24 @@ class IdeController(private val activity: MainActivity) {
         if (searchOpen) showSidebar = true
     }
 
+    private val searchHandler = android.os.Handler(android.os.Looper.getMainLooper())
+    private var searchRunnable: Runnable? = null
+
+    /** 输入时防抖：250ms 无输入才真正扫盘 */
+    fun scheduleSearch() {
+        searchRunnable?.let { searchHandler.removeCallbacks(it) }
+        val r = Runnable { runSearch() }
+        searchRunnable = r
+        searchHandler.postDelayed(r, 250)
+    }
+
+    fun closeSearch() {
+        searchOpen = false
+        searchQuery = ""
+        searchResults = emptyList()
+        searchSummary = ""
+    }
+
     fun runSearch() {
         val root = project?.dir ?: return
         val q = searchQuery.trim()

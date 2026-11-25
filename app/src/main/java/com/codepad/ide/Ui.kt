@@ -54,6 +54,10 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Stop
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.window.PopupProperties
+import androidx.compose.ui.window.Popup
 import androidx.compose.material.icons.filled.Terminal
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
@@ -149,35 +153,150 @@ fun IdeScreen(c: IdeController) {
                     titleContentColor = Color(0xFFD7DCE5),
                 ),
                 title = {
-                    Column {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                text = c.active?.name ?: (c.project?.name ?: "CodePad"),
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                            if (c.dirty) {
-                                Box(
-                                    Modifier
-                                        .padding(start = 6.dp)
-                                        .size(7.dp)
-                                        .background(Accent, RoundedCornerShape(50))
+                    if (c.searchOpen) {
+                        val searchFocus = remember { FocusRequester() }
+                        LaunchedEffect(Unit) { searchFocus.requestFocus() }
+                        Box(Modifier.width(320.dp)) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(34.dp)
+                                    .clip(RoundedCornerShape(17.dp))
+                                    .background(Color(0xFF262B36))
+                                    .padding(start = 11.dp, end = 3.dp),
+                            ) {
+                                Icon(
+                                    Icons.Filled.Search,
+                                    contentDescription = null,
+                                    tint = Green,
+                                    modifier = Modifier.size(15.dp),
                                 )
+                                Spacer(Modifier.width(7.dp))
+                                BasicTextField(
+                                    value = c.searchQuery,
+                                    onValueChange = {
+                                        c.searchQuery = it
+                                        c.scheduleSearch()
+                                    },
+                                    singleLine = true,
+                                    textStyle = LocalTextStyle.current.copy(fontSize = 13.sp, color = Color(0xFFE6EAF2)),
+                                    cursorBrush = SolidColor(Green),
+                                    modifier = Modifier.weight(1f).focusRequester(searchFocus),
+                                    decorationBox = { inner ->
+                                        if (c.searchQuery.isEmpty()) {
+                                            Text("在工程中搜索…", fontSize = 13.sp, color = Color(0xFF7A8494))
+                                        }
+                                        inner()
+                                    },
+                                )
+                                Text(
+                                    text = if (c.searchBusy) "…" else c.searchResults.size.toString(),
+                                    fontSize = 10.sp,
+                                    color = Muted,
+                                    modifier = Modifier.padding(horizontal = 5.dp),
+                                )
+                                IconButton(onClick = { c.closeSearch() }, modifier = Modifier.size(24.dp)) {
+                                    Icon(
+                                        Icons.Filled.Close,
+                                        contentDescription = "关闭搜索",
+                                        tint = Muted,
+                                        modifier = Modifier.size(14.dp),
+                                    )
+                                }
                             }
-                            if (c.active != null) {
-                                Spacer(Modifier.width(8.dp))
-                                Text(c.activeLang?.name ?: "", fontSize = 11.sp, color = Muted)
+                            if (c.searchResults.isNotEmpty()) {
+                                val gapPx = with(LocalDensity.current) { 40.dp.roundToPx() }
+                                Popup(
+                                    alignment = Alignment.TopStart,
+                                    offset = IntOffset(0, gapPx),
+                                    properties = PopupProperties(focusable = false),
+                                ) {
+                                    Surface(
+                                        shape = RoundedCornerShape(14.dp),
+                                        color = Color(0xFF1B2029),
+                                        border = BorderStroke(1.dp, Color(0xFF2E3542)),
+                                        shadowElevation = 14.dp,
+                                        modifier = Modifier.width(340.dp),
+                                    ) {
+                                        Column(
+                                            Modifier
+                                                .heightIn(max = 300.dp)
+                                                .verticalScroll(rememberScrollState())
+                                                .padding(vertical = 4.dp)
+                                        ) {
+                                            Text(
+                                                text = c.searchResults.size.toString() + " 个结果" +
+                                                    (if (c.searchSummary.isNotBlank()) " · " + c.searchSummary else ""),
+                                                fontSize = 10.sp,
+                                                color = Muted,
+                                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 3.dp),
+                                            )
+                                            val root = c.project?.dir ?: File("/")
+                                            c.searchResults.take(200).forEach { h ->
+                                                val rel = Workspace.relativePath(root, File(h.path))
+                                                Row(
+                                                    Modifier
+                                                        .fillMaxWidth()
+                                                        .clickable {
+                                                            c.openHit(h)
+                                                            c.closeSearch()
+                                                        }
+                                                        .padding(horizontal = 12.dp, vertical = 6.dp),
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                ) {
+                                                    Text(
+                                                        text = rel + ":" + h.line,
+                                                        fontSize = 10.5.sp,
+                                                        color = Accent,
+                                                        maxLines = 1,
+                                                    )
+                                                    Spacer(Modifier.width(10.dp))
+                                                    Text(
+                                                        text = h.text.trim(),
+                                                        fontSize = 10.5.sp,
+                                                        color = Color(0xFFC7CEDA),
+                                                        maxLines = 1,
+                                                        overflow = TextOverflow.Ellipsis,
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
                             }
                         }
-                        if (c.active != null) {
-                            Text(
-                                text = c.project?.name ?: "",
-                                fontSize = 10.sp,
-                                color = Color(0xFF5C6773),
-                                maxLines = 1,
-                            )
+                    } else {
+                        Column {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = c.active?.name ?: (c.project?.name ?: "CodePad"),
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                                if (c.dirty) {
+                                    Box(
+                                        Modifier
+                                            .padding(start = 6.dp)
+                                            .size(7.dp)
+                                            .background(Accent, RoundedCornerShape(50))
+                                    )
+                                }
+                                if (c.active != null) {
+                                    Spacer(Modifier.width(8.dp))
+                                    Text(c.activeLang?.name ?: "", fontSize = 11.sp, color = Muted)
+                                }
+                            }
+                            if (c.active != null) {
+                                Text(
+                                    text = c.project?.name ?: "",
+                                    fontSize = 10.sp,
+                                    color = Color(0xFF5C6773),
+                                    maxLines = 1,
+                                )
+                            }
                         }
                     }
                 },
@@ -196,14 +315,22 @@ fun IdeScreen(c: IdeController) {
                     }
                     if (c.runner.canStop) {
                         IconButton(onClick = { c.runner.stop() }) {
-                            Icon(Icons.Filled.Stop, contentDescription = "停止", tint = Color(0xFFFF8A80))
+                            Icon(Icons.Filled.Stop, contentDescription = "停止", tint = Green)
                         }
                     }
                     IconButton(onClick = { c.startDebug() }) {
-                        Icon(Icons.Filled.BugReport, contentDescription = "调试", tint = Color(0xFFB39DDB))
+                        Icon(
+                            Icons.Filled.BugReport,
+                            contentDescription = "调试",
+                            tint = if (c.debugActive) Green else Muted,
+                        )
                     }
                     IconButton(onClick = { c.js("CP.requestRun()") }) {
-                        Icon(Icons.Filled.PlayArrow, contentDescription = "运行", tint = Green)
+                        Icon(
+                            Icons.Filled.PlayArrow,
+                            contentDescription = "运行",
+                            tint = if (c.runner.canStop) Green else Muted,
+                        )
                     }
                     IconButton(onClick = { c.js("CP.requestSave()") }) {
                         Icon(Icons.Filled.Save, contentDescription = "保存", tint = Muted)
@@ -212,14 +339,22 @@ fun IdeScreen(c: IdeController) {
                         c.showTerminal = !c.showTerminal
                         c.ensureTerminal()
                     }) {
-                        Icon(Icons.Filled.Terminal, contentDescription = "终端", tint = Muted)
+                        Icon(
+                            Icons.Filled.Terminal,
+                            contentDescription = "终端",
+                            tint = if (c.showTerminal) Green else Muted,
+                        )
                     }
                     IconButton(onClick = { c.openDialog("newFile", c.project?.dir) }) {
                         Icon(Icons.Filled.Add, contentDescription = "新建文件", tint = Muted)
                     }
                     Box {
                         IconButton(onClick = { menuOpen = true }) {
-                            Icon(Icons.Filled.MoreVert, contentDescription = "更多", tint = Muted)
+                            Icon(
+                                Icons.Filled.MoreVert,
+                                contentDescription = "更多",
+                                tint = if (menuOpen) Green else Muted,
+                            )
                         }
                         DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
                             DropdownMenuItem(
@@ -292,11 +427,7 @@ fun IdeScreen(c: IdeController) {
             HorizontalDivider(color = Stroke)
             Row(Modifier.weight(1f).fillMaxWidth()) {
                 if (c.showSidebar) {
-                    if (c.searchOpen) {
-                        SearchPanel(c, Modifier.width(300.dp).fillMaxHeight())
-                    } else {
                     ExplorerPanel(c, Modifier.width(250.dp).fillMaxHeight())
-                    }
                     Box(Modifier.width(1.dp).fillMaxHeight().background(Stroke))
                 }
                 Box(Modifier.weight(1f).fillMaxHeight()) {
