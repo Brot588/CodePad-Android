@@ -1233,23 +1233,6 @@ private fun DebugContent(c: IdeController) {
                     )
                 }
             }
-            Box(Modifier.width(1.dp).fillMaxHeight().background(Stroke))
-            Column(Modifier.weight(1f).fillMaxHeight().padding(horizontal = 8.dp, vertical = 6.dp)) {
-                Text(Loc.t("调用栈"), fontSize = 10.sp, color = Muted, fontWeight = FontWeight.SemiBold)
-                Spacer(Modifier.height(4.dp))
-                LazyColumn {
-                    items(c.debugStack) { frame ->
-                        Text(
-                            frame,
-                            fontSize = 11.sp,
-                            color = Color(0xFFC2C9D6),
-                            fontFamily = FontFamily.Monospace,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    }
-                }
-            }
         }
     }
 }

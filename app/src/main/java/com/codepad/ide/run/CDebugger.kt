@@ -326,11 +326,10 @@ object CDebugger {
             val line = lineAt(rel)
             val regs = readRegs(gdb, st)
             val vars = if (regs != null) evalVars(gdb, regs, func, line) else emptyList()
-            val frames = if (regs != null) walkFrames(gdb, regs, base) else emptyList()
             val note = noteFor(st, func, line)
             pausedSignal = if (st.signal in FATAL_SIGNALS) st.signal else 0
             Log.i("CodePadRSP", "stop pc=0x" + java.lang.Long.toHexString(pc) + " line=" + line + " reason=" + st.reason)
-            publish(buildPause(pc, line, func?.name ?: "", vars, frames, st.reason, note))
+            publish(buildPause(pc, line, func?.name ?: "", vars, st.reason, note))
 
             val next = queue.poll(600, TimeUnit.SECONDS) ?: "k"
             if (next == "k") {
@@ -838,16 +837,11 @@ object CDebugger {
         line: Int,
         func: String,
         vars: List<Pair<String, String>>,
-        frames: List<Triple<String, String, Int>>,
         reason: String,
         note: String,
     ): String {
         val varsJson = JSONArray()
         vars.forEach { (n, v) -> varsJson.put(JSONObject().put("name", n).put("value", v)) }
-        val stackJson = JSONArray()
-        frames.forEach { (f, file, ln) ->
-            stackJson.put(JSONObject().put("func", f).put("file", file).put("line", ln))
-        }
         return JSONObject()
             .put("type", "pause")
             .put("reason", reason)
@@ -857,11 +851,10 @@ object CDebugger {
             .put("note", note)
             .put("file", srcName)
             .put("vars", varsJson)
-            .put("stack", stackJson)
             .toString()
     }
 
-    // ------------------------------------------------------------ 变量 / 调用栈
+    // ------------------------------------------------------------ 变量
 
     private fun compileRust(source: File, exe: File): Pair<Boolean, String> {
         val cmd = listOf(
@@ -1089,50 +1082,6 @@ object CDebugger {
             4 -> value.toInt().toString()
             else -> value.toString()
         }
-    }
-
-    private fun walkFrames(
-        gdb: GdbClient,
-        regs: LongArray,
-        base: Long,
-    ): List<Triple<String, String, Int>> {
-        val frames = ArrayList<Triple<String, String, Int>>()
-        // pc / lr / 帧指针链可能指向同一个函数同一行，去重，避免调用栈出现重复帧
-        fun add(f: Triple<String, String, Int>?) {
-            if (f == null) return
-            if (frames.isNotEmpty() && frames.last() == f) return
-            frames.add(f)
-        }
-        val pc = regs.getOrNull(32) ?: return frames
-        val topFunc = dwarf?.at(pc - base)
-        add(frameOf(pc, base) ?: Triple("0x" + java.lang.Long.toHexString(pc), "", 0))
-        // 叶子函数可能不建帧指针，x30 里是调用者的返回地址；
-        // 但同一个函数内部的 x30 只是上次调用的残留，不能算成一帧
-        val lr = regs.getOrNull(30) ?: 0L
-        if (lr > 0) {
-            val lrFunc = dwarf?.at(lr - base)
-            if (lrFunc == null || lrFunc.low != (topFunc?.low ?: -1L)) add(frameOf(lr, base))
-        }
-        var fp = regs.getOrNull(29) ?: return frames
-        var guard = 0
-        while (guard++ < 12 && fp > 0x1000) {
-            val ret = gdb.readLong(fp + 8) ?: break
-            val nextFp = gdb.readLong(fp) ?: break
-            if (ret == 0L) break
-            // 只保留能落到已知函数里的帧，链条一旦跑偏就停
-            val frame = frameOf(ret, base) ?: break
-            add(frame)
-            if (nextFp <= fp) break
-            fp = nextFp
-        }
-        return frames
-    }
-
-    private fun frameOf(pc: Long, base: Long): Triple<String, String, Int>? {
-        val rel = pc - base
-        val func = dwarf?.at(rel) ?: return null
-        val line = lineAt(rel)
-        return Triple(func.name, srcName, line)
     }
 
     // ------------------------------------------------------------ 生命周期

@@ -528,7 +528,6 @@ class IdeController(private val activity: MainActivity) {
         private set
     var debugVars by mutableStateOf<List<Pair<String, String>>>(emptyList())
         private set
-    var debugStack by mutableStateOf<List<String>>(emptyList())
     var debugOut by mutableStateOf("")
         private set
 
@@ -580,7 +579,6 @@ class IdeController(private val activity: MainActivity) {
         debugFunc = ""
         debugFile = ""
         debugVars = emptyList()
-        debugStack = emptyList()
         debugOut = ""
         DebugBridge.listener = { json ->
             ui { onDebugState(json) }
@@ -630,7 +628,6 @@ class IdeController(private val activity: MainActivity) {
         debugFunc = ""
         debugFile = ""
         debugVars = emptyList()
-        debugStack = emptyList()
         DebugBridge.listener = { json -> ui { onDebugState(json) } }
         CDebugger.start(
             file,
@@ -727,18 +724,6 @@ class IdeController(private val activity: MainActivity) {
                     }
                 }
                 debugVars = vars
-                val stack = ArrayList<String>()
-                o.optJSONArray("stack")?.let { arr ->
-                    for (i in 0 until arr.length()) {
-                        val item = arr.optJSONObject(i) ?: continue
-                        val ln = item.optInt("line")
-                        stack.add(
-                            if (ln > 0) item.optString("func") + " · " + item.optString("file") + ":" + ln
-                            else item.optString("func")
-                        )
-                    }
-                }
-                debugStack = stack
                 if (debugLine > 0) js("CP.setDebugLine($debugLine)")
             }
             "exit" -> {
@@ -803,7 +788,6 @@ class IdeController(private val activity: MainActivity) {
         debugStarted = false
         debugReason = message
         debugVars = emptyList()
-        debugStack = emptyList()
         debugLine = 0
         debugNote = ""
         debugFunc = ""
