@@ -190,7 +190,7 @@ fun IdeScreen(c: IdeController) {
                                     modifier = Modifier.weight(1f).focusRequester(searchFocus),
                                     decorationBox = { inner ->
                                         if (c.searchQuery.isEmpty()) {
-                                            Text("在工程中搜索…", fontSize = 13.sp, color = Color(0xFF7A8494))
+                                            Text(Loc.t("在工程中搜索…"), fontSize = 13.sp, color = Color(0xFF7A8494))
                                         }
                                         inner()
                                     },
@@ -204,7 +204,7 @@ fun IdeScreen(c: IdeController) {
                                 IconButton(onClick = { c.closeSearch() }, modifier = Modifier.size(24.dp)) {
                                     Icon(
                                         Icons.Filled.Close,
-                                        contentDescription = "关闭搜索",
+                                        contentDescription = Loc.t("关闭搜索"),
                                         tint = Muted,
                                         modifier = Modifier.size(14.dp),
                                     )
@@ -231,7 +231,7 @@ fun IdeScreen(c: IdeController) {
                                                 .padding(vertical = 4.dp)
                                         ) {
                                             Text(
-                                                text = c.searchResults.size.toString() + " 个结果" +
+                                                text = c.searchResults.size.toString() + Loc.t(" 个结果") +
                                                     (if (c.searchSummary.isNotBlank()) " · " + c.searchSummary else ""),
                                                 fontSize = 10.sp,
                                                 color = Muted,
@@ -304,14 +304,14 @@ fun IdeScreen(c: IdeController) {
                 },
                 navigationIcon = {
                     IconButton(onClick = { c.showSidebar = !c.showSidebar }) {
-                        Icon(Icons.Filled.Folder, contentDescription = "资源管理器", tint = Muted)
+                        Icon(Icons.Filled.Folder, contentDescription = Loc.t("资源管理器"), tint = Muted)
                     }
                 },
                 actions = {
                     IconButton(onClick = { c.toggleSearch() }) {
                         Icon(
                             Icons.Filled.Search,
-                            contentDescription = "搜索",
+                            contentDescription = Loc.t("搜索"),
                             tint = if (c.searchOpen) Green else Muted,
                         )
                     }
@@ -320,7 +320,7 @@ fun IdeScreen(c: IdeController) {
                         IconButton(onClick = { projectOpen = true }) {
                             Icon(
                                 Icons.Filled.FolderOpen,
-                                contentDescription = "工程",
+                                contentDescription = Loc.t("工程"),
                                 tint = if (projectOpen) Green else Muted,
                             )
                         }
@@ -347,29 +347,29 @@ fun IdeScreen(c: IdeController) {
                             }
                             HorizontalDivider(color = Stroke)
                             DropdownMenuItem(
-                                text = { Text("新建工程…") },
+                                text = { Text(Loc.t("新建工程…")) },
                                 onClick = { projectOpen = false; c.openDialog("newProject") },
                             )
                             DropdownMenuItem(
-                                text = { Text("导入工程（zip）") },
+                                text = { Text(Loc.t("导入工程（zip）")) },
                                 onClick = { projectOpen = false; c.startImport() },
                             )
                             DropdownMenuItem(
-                                text = { Text("导出当前工程（zip）") },
+                                text = { Text(Loc.t("导出当前工程（zip）")) },
                                 onClick = { projectOpen = false; c.startExport() },
                             )
                             DropdownMenuItem(
-                                text = { Text("重命名当前工程…") },
+                                text = { Text(Loc.t("重命名当前工程…")) },
                                 onClick = { projectOpen = false; c.openDialog("renameProject") },
                             )
                             DropdownMenuItem(
-                                text = { Text("删除当前工程…") },
+                                text = { Text(Loc.t("删除当前工程…")) },
                                 onClick = { projectOpen = false; c.openDialog("deleteProject") },
                             )
                         }
                     }
                     IconButton(onClick = { c.js("CP.requestSave()") }) {
-                        Icon(Icons.Filled.Save, contentDescription = "保存", tint = Muted)
+                        Icon(Icons.Filled.Save, contentDescription = Loc.t("保存"), tint = Muted)
                     }
                     IconButton(onClick = {
                         c.showTerminal = !c.showTerminal
@@ -377,26 +377,26 @@ fun IdeScreen(c: IdeController) {
                     }) {
                         Icon(
                             Icons.Filled.Terminal,
-                            contentDescription = "终端",
+                            contentDescription = Loc.t("终端"),
                             tint = if (c.showTerminal) Green else Muted,
                         )
                     }
                     IconButton(onClick = { c.startDebug() }) {
                         Icon(
                             Icons.Filled.BugReport,
-                            contentDescription = "调试",
+                            contentDescription = Loc.t("调试"),
                             tint = if (c.debugActive) Green else Muted,
                         )
                     }
                     if (c.runner.canStop) {
                         IconButton(onClick = { c.runner.stop() }) {
-                            Icon(Icons.Filled.Stop, contentDescription = "停止", tint = Green)
+                            Icon(Icons.Filled.Stop, contentDescription = Loc.t("停止"), tint = Green)
                         }
                     } else {
                         IconButton(onClick = { c.js("CP.requestRun()") }) {
                             Icon(
                                 Icons.Filled.PlayArrow,
-                                contentDescription = "运行",
+                                contentDescription = Loc.t("运行"),
                                 tint = Muted,
                             )
                         }
@@ -406,38 +406,38 @@ fun IdeScreen(c: IdeController) {
                         IconButton(onClick = { menuOpen = true }) {
                             Icon(
                                 Icons.Filled.MoreVert,
-                                contentDescription = "更多",
+                                contentDescription = Loc.t("更多"),
                                 tint = if (menuOpen) Green else Muted,
                             )
                         }
                         DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
                             DropdownMenuItem(
-                                text = { Text("切换断点（当前行）") },
+                                text = { Text(Loc.t("切换断点（当前行）")) },
                                 onClick = { menuOpen = false; c.js("CP.toggleBreakpointAtCursor()") },
                             )
                             DropdownMenuItem(
-                                text = { Text("跳转到定义（F12）") },
+                                text = { Text(Loc.t("跳转到定义（F12）")) },
                                 onClick = { menuOpen = false; c.js("CP.gotoDefinition()") },
                             )
                             HorizontalDivider(color = Stroke)
                             DropdownMenuItem(
-                                text = { Text("选择运行目标…") },
+                                text = { Text(Loc.t("选择运行目标…")) },
                                 onClick = { menuOpen = false; c.chooseRunTarget() },
                             )
                             DropdownMenuItem(
-                                text = { Text(if (c.webPreviewVisible) "收起网页预览" else "网页预览（实时）") },
+                                text = { Text(if (c.webPreviewVisible) Loc.t("收起网页预览") else Loc.t("网页预览（实时）")) },
                                 onClick = { menuOpen = false; c.toggleWebPreviewMenu() },
                             )
                             DropdownMenuItem(
-                                text = { Text("设置…") },
+                                text = { Text(Loc.t("设置…")) },
                                 onClick = { menuOpen = false; c.openDialog("settings") },
                             )
                             DropdownMenuItem(
-                                text = { Text("重载扩展") },
+                                text = { Text(Loc.t("重载扩展")) },
                                 onClick = { menuOpen = false; c.reloadExtensions() },
                             )
                             DropdownMenuItem(
-                                text = { Text("关于 CodePad") },
+                                text = { Text(Loc.t("关于 CodePad")) },
                                 onClick = { menuOpen = false; c.openDialog("about") },
                             )
                         }
@@ -562,7 +562,7 @@ private fun ExplorerPanel(c: IdeController, modifier: Modifier) {
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                "资源管理器",
+                Loc.t("资源管理器"),
                 fontSize = 10.sp,
                 color = Color(0xFF5C6773),
                 modifier = Modifier.weight(1f),
@@ -615,7 +615,7 @@ private fun ExplorerPanel(c: IdeController, modifier: Modifier) {
                 if (c.files.isEmpty()) {
                     item {
                         Text(
-                            "空工程 · 点右上角 + 新建文件",
+                            Loc.t("空工程 · 点右上角 + 新建文件"),
                             fontSize = 11.sp,
                             color = Color(0xFF4A5261),
                             modifier = Modifier.padding(14.dp),
@@ -624,7 +624,7 @@ private fun ExplorerPanel(c: IdeController, modifier: Modifier) {
                 }
                 item {
                     Text(
-                        "长按拖动文件到文件夹，或松手打开菜单",
+                        Loc.t("长按拖动文件到文件夹，或松手打开菜单"),
                         fontSize = 10.sp,
                         color = Color(0xFF3E4552),
                         modifier = Modifier.padding(start = 12.dp, top = 10.dp, bottom = 14.dp),
@@ -741,7 +741,7 @@ private fun TreeRow(
             IconButton(onClick = { onMenu(node.file) }, modifier = Modifier.size(22.dp)) {
                 Icon(
                     Icons.Filled.MoreVert,
-                    contentDescription = "文件操作",
+                    contentDescription = Loc.t("文件操作"),
                     tint = Color(0xFF5C6773),
                     modifier = Modifier.size(13.dp),
                 )
@@ -750,26 +750,26 @@ private fun TreeRow(
         DropdownMenu(expanded = menuOpen, onDismissRequest = { onMenu(null) }) {
             val parent = if (node.isDir) node.file else (node.file.parentFile ?: c.project!!.dir)
             DropdownMenuItem(
-                text = { Text("新建文件") },
+                text = { Text(Loc.t("新建文件")) },
                 onClick = { onMenu(null); c.openDialog("newFile", parent) },
             )
             DropdownMenuItem(
-                text = { Text("新建文件夹") },
+                text = { Text(Loc.t("新建文件夹")) },
                 onClick = { onMenu(null); c.openDialog("newFolder", parent) },
             )
             if (node.isDir) {
                 DropdownMenuItem(
-                    text = { Text("展开 / 折叠") },
+                    text = { Text(Loc.t("展开 / 折叠")) },
                     onClick = { onMenu(null); c.toggleFolder(node) },
                 )
             }
             DropdownMenuItem(
-                text = { Text("移动到文件夹…") },
+                text = { Text(Loc.t("移动到文件夹…")) },
                 onClick = { onMenu(null); c.openDialog("moveNode", node.file) },
             )
             if (node.file.parentFile?.absolutePath != c.project?.dir?.absolutePath) {
                 DropdownMenuItem(
-                    text = { Text("移到上一层") },
+                    text = { Text(Loc.t("移到上一层")) },
                     onClick = {
                         onMenu(null)
                         node.file.parentFile?.parentFile?.let { up -> c.moveNode(node.file, up) }
@@ -777,11 +777,11 @@ private fun TreeRow(
                 )
             }
             DropdownMenuItem(
-                text = { Text("重命名") },
+                text = { Text(Loc.t("重命名")) },
                 onClick = { onMenu(null); c.openDialog("renameNode", node.file) },
             )
             DropdownMenuItem(
-                text = { Text("删除", color = Color(0xFFFF8A80)) },
+                text = { Text(Loc.t("删除"), color = Color(0xFFFF8A80)) },
                 onClick = { onMenu(null); c.openDialog("deleteNode", node.file) },
             )
         }
@@ -810,7 +810,7 @@ private fun EditorPane(c: IdeController) {
                     color = Color(0xFF3C4454),
                 )
                 Spacer(Modifier.height(8.dp))
-                Text("从左侧选择文件，或长按文件夹新建", fontSize = 12.sp, color = Muted)
+                Text(Loc.t("从左侧选择文件，或长按文件夹新建"), fontSize = 12.sp, color = Muted)
             }
         }
     }
@@ -840,10 +840,10 @@ private fun BottomDock(c: IdeController, panelHeight: Int) {
                 .padding(horizontal = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            DockTab("终端", c.bottomTab == TERMINAL_TAB) { c.bottomTab = TERMINAL_TAB }
+            DockTab(Loc.t("终端"), c.bottomTab == TERMINAL_TAB) { c.bottomTab = TERMINAL_TAB }
             Spacer(Modifier.width(4.dp))
             DockTab(
-                if (c.debugActive && c.debugPaused) "调试 ●" else "调试",
+                if (c.debugActive && c.debugPaused) Loc.t("调试 ●") else Loc.t("调试"),
                 c.bottomTab == DEBUG_TAB,
             ) { c.bottomTab = DEBUG_TAB }
             Spacer(Modifier.width(4.dp))
@@ -856,23 +856,23 @@ private fun BottomDock(c: IdeController, panelHeight: Int) {
 
             if (c.bottomTab == TERMINAL_TAB) {
                 IconButton(onClick = { c.ensureTerminal(); c.clearTerminal() }, modifier = Modifier.size(26.dp)) {
-                    Icon(Icons.Filled.DeleteSweep, contentDescription = "清屏", tint = Muted, modifier = Modifier.size(15.dp))
+                    Icon(Icons.Filled.DeleteSweep, contentDescription = Loc.t("清屏"), tint = Muted, modifier = Modifier.size(15.dp))
                 }
                 IconButton(onClick = { c.restartTerminal() }, modifier = Modifier.size(26.dp)) {
-                    Icon(Icons.Filled.RestartAlt, contentDescription = "重启终端", tint = Muted, modifier = Modifier.size(15.dp))
+                    Icon(Icons.Filled.RestartAlt, contentDescription = Loc.t("重启终端"), tint = Muted, modifier = Modifier.size(15.dp))
                 }
                 IconButton(onClick = { c.showTerminal = false }, modifier = Modifier.size(26.dp)) {
-                    Icon(Icons.Filled.Close, contentDescription = "收起终端", tint = Muted, modifier = Modifier.size(15.dp))
+                    Icon(Icons.Filled.Close, contentDescription = Loc.t("收起终端"), tint = Muted, modifier = Modifier.size(15.dp))
                 }
             } else {
                 if (c.debugActive) {
                     if (c.debugPaused) {
-                        DebugBtn(Icons.Filled.PlayArrow, "继续", Green) { c.debugContinue() }
-                        DebugBtn(Icons.Filled.SkipNext, "单步跳过") { c.debugStepOver() }
-                        DebugBtn(Icons.Filled.ArrowDownward, "单步进入") { c.debugStepInto() }
-                        DebugBtn(Icons.Filled.ArrowUpward, "跳出") { c.debugStepOut() }
+                        DebugBtn(Icons.Filled.PlayArrow, Loc.t("继续"), Green) { c.debugContinue() }
+                        DebugBtn(Icons.Filled.SkipNext, Loc.t("单步跳过")) { c.debugStepOver() }
+                        DebugBtn(Icons.Filled.ArrowDownward, Loc.t("单步进入")) { c.debugStepInto() }
+                        DebugBtn(Icons.Filled.ArrowUpward, Loc.t("跳出")) { c.debugStepOut() }
                     }
-                    DebugBtn(Icons.Filled.Stop, "停止", Color(0xFFFF8A80)) { c.debugStop() }
+                    DebugBtn(Icons.Filled.Stop, Loc.t("停止"), Color(0xFFFF8A80)) { c.debugStop() }
                 }
             }
         }
@@ -945,28 +945,28 @@ private fun GitContent(c: IdeController) {
                     c.gitTab = "changes"
                     c.gitRefresh()
                 }
-                DockTab("历史", c.gitTab == "history") { c.gitShowHistory() }
+                DockTab(Loc.t("历史"), c.gitTab == "history") { c.gitShowHistory() }
             } else {
-                Text("这个工程还不是 git 仓库", fontSize = 11.sp, color = Muted)
+                Text(Loc.t("这个工程还不是 git 仓库"), fontSize = 11.sp, color = Muted)
             }
             Spacer(Modifier.weight(1f))
             if (c.gitRepo && c.gitTab == "changes" && c.gitStatus.isNotEmpty()) {
                 TextButton(onClick = { c.gitStageAll() }, contentPadding = PaddingValues(horizontal = 6.dp)) {
-                    Text("全部暂存", fontSize = 11.sp)
+                    Text(Loc.t("全部暂存"), fontSize = 11.sp)
                 }
             }
             TextButton(onClick = { c.gitRefresh() }, contentPadding = PaddingValues(horizontal = 6.dp)) {
-                Text(if (c.gitBusy) "刷新中…" else "刷新", fontSize = 11.sp)
+                Text(if (c.gitBusy) Loc.t("刷新中…") else Loc.t("刷新"), fontSize = 11.sp)
             }
             if (!c.gitRepo) {
                 TextButton(onClick = { c.gitInit() }, contentPadding = PaddingValues(horizontal = 6.dp)) {
-                    Text("初始化", fontSize = 11.sp)
+                    Text(Loc.t("初始化"), fontSize = 11.sp)
                 }
             }
         }
         if (!c.gitRepo) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("点右上「初始化」把这个工程变成 git 仓库", fontSize = 11.sp, color = Muted)
+                Text(Loc.t("点右上「初始化」把这个工程变成 git 仓库"), fontSize = 11.sp, color = Muted)
             }
             return@Column
         }
@@ -1047,7 +1047,7 @@ private fun GitContent(c: IdeController) {
                             c.gitSelected != null && c.gitDiff.isBlank() -> "（${c.gitSelected} 没有文本差异）"
                             c.gitDiff.isNotBlank() -> c.gitDiff
                             c.gitLastCommit.isNotBlank() -> "最近提交：${c.gitLastCommit}\n\n点左边的文件看 diff；＋ 暂存，－ 取消暂存，↺ 丢弃"
-                            else -> "还没有任何提交"
+                            else -> Loc.t("还没有任何提交")
                         },
                         fontSize = 10.sp,
                         fontFamily = FontFamily.Monospace,
@@ -1078,7 +1078,7 @@ private fun GitContent(c: IdeController) {
                         decorationBox = { inner ->
                             Box(Modifier.heightIn(min = 18.dp)) {
                                 if (c.gitCommitMsg.isEmpty()) {
-                                    Text("提交信息（提交已暂存的改动）", fontSize = 11.sp, color = Muted)
+                                    Text(Loc.t("提交信息（提交已暂存的改动）"), fontSize = 11.sp, color = Muted)
                                 }
                                 inner()
                             }
@@ -1091,7 +1091,7 @@ private fun GitContent(c: IdeController) {
                     modifier = Modifier.height(36.dp),
                     contentPadding = PaddingValues(horizontal = 14.dp),
                 ) {
-                    Text("提交", fontSize = 12.sp)
+                    Text(Loc.t("提交"), fontSize = 12.sp)
                 }
             }
         }
@@ -1118,13 +1118,13 @@ private fun DebugContent(c: IdeController) {
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
-                    "点顶栏 🐞 开始调试",
+                    Loc.t("点顶栏 🐞 开始调试"),
                     fontSize = 12.sp,
                     color = Color(0xFFC2C9D6),
                 )
                 Spacer(Modifier.height(6.dp))
                 Text(
-                    "Python / JavaScript / C / Rust · 点行号设断点",
+                    Loc.t("Python / JavaScript / C / Rust · 点行号设断点"),
                     fontSize = 11.sp,
                     color = Muted,
                 )
@@ -1132,7 +1132,7 @@ private fun DebugContent(c: IdeController) {
                 if (name.endsWith(".c") || name.endsWith(".rs")) {
                     Spacer(Modifier.height(4.dp))
                     Text(
-                        "C / Rust 首次调试要解压工具链，需要稍等一下",
+                        Loc.t("C / Rust 首次调试要解压工具链，需要稍等一下"),
                         fontSize = 10.sp,
                         color = Muted,
                     )
@@ -1147,7 +1147,7 @@ private fun DebugContent(c: IdeController) {
             contentAlignment = Alignment.Center,
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("正在准备调试…", fontSize = 12.sp, color = Color(0xFFC2C9D6))
+                Text(Loc.t("正在准备调试…"), fontSize = 12.sp, color = Color(0xFFC2C9D6))
                 Spacer(Modifier.height(6.dp))
                 Text(
                     if (c.debugPrep.isBlank()) c.debugReason else c.debugPrep,
@@ -1157,7 +1157,7 @@ private fun DebugContent(c: IdeController) {
                 )
                 Spacer(Modifier.height(6.dp))
                 Text(
-                    "首次调试需要解压工具链（约 230MB），几十秒内完成",
+                    Loc.t("首次调试需要解压工具链（约 230MB），几十秒内完成"),
                     fontSize = 10.sp,
                     color = Muted,
                 )
@@ -1168,7 +1168,7 @@ private fun DebugContent(c: IdeController) {
 
     Row(Modifier.fillMaxSize().background(Color(0xFF141821))) {
         Column(Modifier.weight(1f).fillMaxHeight().padding(horizontal = 8.dp, vertical = 6.dp)) {
-            Text("变量", fontSize = 10.sp, color = Muted, fontWeight = FontWeight.SemiBold)
+            Text(Loc.t("变量"), fontSize = 10.sp, color = Muted, fontWeight = FontWeight.SemiBold)
             Spacer(Modifier.height(4.dp))
             LazyColumn {
                 items(c.debugVars) { pair ->
@@ -1189,7 +1189,7 @@ private fun DebugContent(c: IdeController) {
                             overflow = TextOverflow.Ellipsis,
                         )
                         if (pair.second.trim().matches(Regex("^-?\\d{7,}$"))) {
-                            Text("(可能未初始化) ", fontSize = 9.sp, color = Color(0xFF6B7280))
+                            Text(Loc.t("(可能未初始化) "), fontSize = 9.sp, color = Color(0xFF6B7280))
                         }
                     }
                 }
@@ -1197,7 +1197,7 @@ private fun DebugContent(c: IdeController) {
         }
         Box(Modifier.width(1.dp).fillMaxHeight().background(Stroke))
         Column(Modifier.weight(1f).fillMaxHeight().padding(horizontal = 8.dp, vertical = 6.dp)) {
-            Text("调用栈", fontSize = 10.sp, color = Muted, fontWeight = FontWeight.SemiBold)
+            Text(Loc.t("调用栈"), fontSize = 10.sp, color = Muted, fontWeight = FontWeight.SemiBold)
             Spacer(Modifier.height(4.dp))
             LazyColumn {
                 items(c.debugStack) { frame ->
@@ -1240,9 +1240,9 @@ private fun StatusBar(c: IdeController) {
 private fun SearchPanel(c: IdeController, modifier: Modifier = Modifier) {
     Column(modifier.background(Panel).padding(horizontal = 8.dp, vertical = 6.dp)) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Text("全局搜索", fontSize = 11.sp, color = Muted, modifier = Modifier.weight(1f))
+            Text(Loc.t("全局搜索"), fontSize = 11.sp, color = Muted, modifier = Modifier.weight(1f))
             TextButton(onClick = { c.searchOpen = false }, contentPadding = PaddingValues(horizontal = 6.dp)) {
-                Text("关闭", fontSize = 10.sp)
+                Text(Loc.t("关闭"), fontSize = 10.sp)
             }
         }
         Surface(
@@ -1260,7 +1260,7 @@ private fun SearchPanel(c: IdeController, modifier: Modifier = Modifier) {
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp),
                 decorationBox = { inner ->
                     Box(Modifier.heightIn(min = 18.dp)) {
-                        if (c.searchQuery.isEmpty()) Text("要搜什么？", fontSize = 12.sp, color = Muted)
+                        if (c.searchQuery.isEmpty()) Text(Loc.t("要搜什么？"), fontSize = 12.sp, color = Muted)
                         inner()
                     }
                 },
@@ -1268,7 +1268,7 @@ private fun SearchPanel(c: IdeController, modifier: Modifier = Modifier) {
         }
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             TextButton(onClick = { c.runSearch() }, contentPadding = PaddingValues(horizontal = 8.dp)) {
-                Text(if (c.searchBusy) "搜索中…" else "搜索", fontSize = 11.sp)
+                Text(if (c.searchBusy) Loc.t("搜索中…") else Loc.t("搜索"), fontSize = 11.sp)
             }
             TextButton(
                 onClick = {
@@ -1277,7 +1277,7 @@ private fun SearchPanel(c: IdeController, modifier: Modifier = Modifier) {
                 },
                 contentPadding = PaddingValues(horizontal = 8.dp),
             ) {
-                Text(if (c.searchCase) "Aa 区分大小写" else "Aa 忽略大小写", fontSize = 10.sp, color = Muted)
+                Text(if (c.searchCase) Loc.t("Aa 区分大小写") else Loc.t("Aa 忽略大小写"), fontSize = 10.sp, color = Muted)
             }
         }
         if (c.searchSummary.isNotBlank()) {
@@ -1343,16 +1343,16 @@ private fun IdeDialogs(c: IdeController) {
     when (d) {
         "settings" -> AlertDialog(
             onDismissRequest = { c.closeDialog() },
-            title = { Text("设置") },
+            title = { Text(Loc.t("设置")) },
             text = {
                 Column {
                     SettingStepper(
-                        "编辑器字号",
+                        Loc.t("编辑器字号"),
                         c.editorFontSize.toString(),
                         { c.changeEditorFontSize(c.editorFontSize - 1) },
                         { c.changeEditorFontSize(c.editorFontSize + 1) },
                     )
-                    Text("缩进宽度", fontSize = 12.sp, color = Color(0xFFD7DCE5))
+                    Text(Loc.t("缩进宽度"), fontSize = 12.sp, color = Color(0xFFD7DCE5))
                     Row(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
                         listOf(2, 4, 8).forEach { n ->
                             FilterChip(
@@ -1364,42 +1364,53 @@ private fun IdeDialogs(c: IdeController) {
                         }
                     }
                     Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Text("自动换行", fontSize = 12.sp, color = Color(0xFFD7DCE5), modifier = Modifier.weight(1f))
+                        Text(Loc.t("自动换行"), fontSize = 12.sp, color = Color(0xFFD7DCE5), modifier = Modifier.weight(1f))
                         Switch(checked = c.editorWordWrap, onCheckedChange = { c.changeWordWrap(it) })
                     }
+                    Text(Loc.t("语言"), fontSize = 12.sp, color = Color(0xFFD7DCE5))
+                    Row(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+                        listOf("zh" to Loc.t("中文"), "en" to "English").forEach { (code, label) ->
+                            FilterChip(
+                                selected = Loc.lang == code,
+                                onClick = { c.setLang(code) },
+                                label = { Text(label, fontSize = 11.sp) },
+                                modifier = Modifier.padding(end = 6.dp),
+                            )
+                        }
+                    }
                     SettingStepper(
-                        "终端字号",
+                        Loc.t("终端字号"),
                         c.terminalFontSize.toString(),
                         { c.changeTerminalFontSize(c.terminalFontSize - 0.5f) },
                         { c.changeTerminalFontSize(c.terminalFontSize + 0.5f) },
                     )
                 }
             },
-            confirmButton = { TextButton(onClick = { c.closeDialog() }) { Text("完成") } },
+            confirmButton = { TextButton(onClick = { c.closeDialog() }) { Text(Loc.t("完成")) } },
         )
 
         "gitDiscard" -> AlertDialog(
             onDismissRequest = { c.closeDialog() },
-            title = { Text("丢弃改动") },
+            title = { Text(Loc.t("丢弃改动")) },
             text = { Text("确定丢弃「${c.gitDiscardPath}」的改动吗？未跟踪的文件会被删除，不可恢复。") },
             confirmButton = {
                 TextButton(onClick = {
                     val p = c.gitDiscardPath
                     c.closeDialog()
                     if (p != null) c.gitDiscard(p)
-                }) { Text("丢弃", color = Color(0xFFFF6B6B)) }
+                }) { Text(Loc.t("丢弃"), color = Color(0xFFFF6B6B)) }
             },
-            dismissButton = { TextButton(onClick = { c.closeDialog() }) { Text("取消") } },
+            dismissButton = { TextButton(onClick = { c.closeDialog() }) { Text(Loc.t("取消")) } },
         )
 
         "runTarget" -> AlertDialog(
             onDismissRequest = { c.closeDialog() },
-            title = { Text("选择运行目标") },
+            title = { Text(Loc.t("选择运行目标")) },
             text = {
                 val projectPath = c.active?.let { com.codepad.ide.run.CToolchain.cmakeRootOf(it) }?.absolutePath
                     ?: (c.project?.dir?.absolutePath ?: "")
                 Column(Modifier.verticalScroll(rememberScrollState())) {
-                    Text("build 目录里的可执行文件：", fontSize = 11.sp, color = Muted)
+                    Text(Loc.t("build 目录里的可执行文件："), fontSize = 11.sp, color = Muted)
                     Spacer(Modifier.height(6.dp))
                     com.codepad.ide.run.CToolchain.lastCmakeTargets.forEach { f ->
                         val selected = com.codepad.ide.run.CToolchain.preferredTarget(projectPath) == f.name
@@ -1423,12 +1434,12 @@ private fun IdeDialogs(c: IdeController) {
                     }
                 }
             },
-            confirmButton = { TextButton(onClick = { c.closeDialog() }) { Text("关闭") } },
+            confirmButton = { TextButton(onClick = { c.closeDialog() }) { Text(Loc.t("关闭")) } },
         )
 
         "about" -> AlertDialog(
             onDismissRequest = { c.closeDialog() },
-            title = { Text("关于 CodePad") },
+            title = { Text(Loc.t("关于 CodePad")) },
             text = {
                 Column {
                     Text("CodePad ${c.appVersion}", fontWeight = FontWeight.SemiBold)
@@ -1439,74 +1450,74 @@ private fun IdeDialogs(c: IdeController) {
                             "· Monaco 编辑器 + clangd 补全 + 原生 PTY 终端\n" +
                             "· C / C++ / Rust / Python / JavaScript / Shell 运行\n" +
                             "· C / C++ / Rust / Python / JS 断点调试\n" +
-                            "· 内置 clang、rustc+cargo、cmake",
+                            Loc.t("· 内置 clang、rustc+cargo、cmake"),
                         fontSize = 12.sp,
                     )
                 }
             },
-            confirmButton = { TextButton(onClick = { c.closeDialog() }) { Text("好") } },
+            confirmButton = { TextButton(onClick = { c.closeDialog() }) { Text(Loc.t("好")) } },
         )
 
         "deleteProject" -> AlertDialog(
             onDismissRequest = { c.closeDialog() },
-            title = { Text("删除工程") },
+            title = { Text(Loc.t("删除工程")) },
             text = { Text("确定删除工程「${c.project?.name}」及其全部文件吗？此操作不可撤销。") },
             confirmButton = {
                 TextButton(onClick = {
                     c.deleteCurrentProject()
                     c.closeDialog()
-                }) { Text("删除", color = Color(0xFFFF6B6B)) }
+                }) { Text(Loc.t("删除"), color = Color(0xFFFF6B6B)) }
             },
-            dismissButton = { TextButton(onClick = { c.closeDialog() }) { Text("取消") } },
+            dismissButton = { TextButton(onClick = { c.closeDialog() }) { Text(Loc.t("取消")) } },
         )
 
         "deleteNode" -> AlertDialog(
             onDismissRequest = { c.closeDialog() },
-            title = { Text("删除") },
+            title = { Text(Loc.t("删除")) },
             text = {
                 val target = c.dialogTarget
                 Text(
                     if (target?.isDirectory == true)
                         "确定删除文件夹「${target.name}」及其中所有文件吗？"
                     else
-                        "确定删除「${target?.name ?: ""}」吗？"
+                        "确定删除「${target?.name ?: "文件"}」吗？"
                 )
             },
             confirmButton = {
                 TextButton(onClick = {
                     c.dialogTarget?.let { c.deleteNode(it) }
                     c.closeDialog()
-                }) { Text("删除", color = Color(0xFFFF6B6B)) }
+                }) { Text(Loc.t("删除"), color = Color(0xFFFF6B6B)) }
             },
-            dismissButton = { TextButton(onClick = { c.closeDialog() }) { Text("取消") } },
+            dismissButton = { TextButton(onClick = { c.closeDialog() }) { Text(Loc.t("取消")) } },
         )
 
         "newProject" -> AlertDialog(
             onDismissRequest = { c.closeDialog() },
-            title = { Text("新建工程") },
+            title = { Text(Loc.t("新建工程")) },
             text = {
                 Column {
                     OutlinedTextField(
                         value = field,
                         onValueChange = { field = it },
                         singleLine = true,
-                        label = { Text("工程名称") },
+                        label = { Text(Loc.t("工程名称")) },
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                     )
                     Spacer(Modifier.height(12.dp))
-                    Text("模板", fontSize = 11.sp, color = Muted)
+                    Text(Loc.t("模板"), fontSize = 11.sp, color = Muted)
                     Row(
                         Modifier.horizontalScroll(rememberScrollState()),
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                     ) {
-                        TemplateChip("空工程", template == Templates.EMPTY) { template = Templates.EMPTY }
+                        TemplateChip(Loc.t("空工程"), template == Templates.EMPTY) { template = Templates.EMPTY }
                         TemplateChip("C", template == Templates.C) { template = Templates.C }
                         TemplateChip("Python", template == Templates.PYTHON) { template = Templates.PYTHON }
                 TemplateChip("Rust", template == Templates.RUST) { template = Templates.RUST }
                 TemplateChip("C/CMake", template == Templates.CMAKE) { template = Templates.CMAKE }
                 TemplateChip("C++/CMake", template == Templates.CPP) { template = Templates.CPP }
                 TemplateChip("Web", template == Templates.WEB) { template = Templates.WEB }
-                        TemplateChip("多语言", template == Templates.MULTI) { template = Templates.MULTI }
+                        TemplateChip(Loc.t("多语言"), template == Templates.MULTI) { template = Templates.MULTI }
                     }
                 }
             },
@@ -1514,29 +1525,29 @@ private fun IdeDialogs(c: IdeController) {
                 TextButton(onClick = {
                     c.createProject(field.text, template)
                     c.closeDialog()
-                }) { Text("创建") }
+                }) { Text(Loc.t("创建")) }
             },
-            dismissButton = { TextButton(onClick = { c.closeDialog() }) { Text("取消") } },
+            dismissButton = { TextButton(onClick = { c.closeDialog() }) { Text(Loc.t("取消")) } },
         )
 
         "renameProject" -> AlertDialog(
             onDismissRequest = { c.closeDialog() },
-            title = { Text("重命名工程") },
+            title = { Text(Loc.t("重命名工程")) },
             text = {
                 OutlinedTextField(
                     value = field,
                     onValueChange = { field = it },
                     singleLine = true,
-                    label = { Text("工程名称") },
+                    label = { Text(Loc.t("工程名称")) },
                 )
             },
             confirmButton = {
                 TextButton(onClick = {
                     c.renameCurrentProject(field.text)
                     c.closeDialog()
-                }) { Text("确定") }
+                }) { Text(Loc.t("确定")) }
             },
-            dismissButton = { TextButton(onClick = { c.closeDialog() }) { Text("取消") } },
+            dismissButton = { TextButton(onClick = { c.closeDialog() }) { Text(Loc.t("取消")) } },
         )
 
         "moveNode" -> {
@@ -1549,7 +1560,7 @@ private fun IdeDialogs(c: IdeController) {
             }
             AlertDialog(
                 onDismissRequest = { c.closeDialog() },
-                title = { Text("移动到文件夹") },
+                title = { Text(Loc.t("移动到文件夹")) },
                 text = {
                     Column(
                         Modifier
@@ -1557,7 +1568,7 @@ private fun IdeDialogs(c: IdeController) {
                             .verticalScroll(rememberScrollState())
                     ) {
                         folders.forEach { f ->
-                            val label = if (f == root) "/ · 工程根目录" else Workspace.relativePath(root ?: f, f)
+                            val label = if (f == root) Loc.t("/ · 工程根目录") else Workspace.relativePath(root ?: f, f)
                             Row(
                                 Modifier
                                     .fillMaxWidth()
@@ -1578,22 +1589,22 @@ private fun IdeDialogs(c: IdeController) {
                         val src = c.dialogTarget
                         if (dst != null && src != null) c.moveNode(src, dst)
                         c.closeDialog()
-                    }) { Text("移动") }
+                    }) { Text(Loc.t("移动")) }
                 },
-                dismissButton = { TextButton(onClick = { c.closeDialog() }) { Text("取消") } },
+                dismissButton = { TextButton(onClick = { c.closeDialog() }) { Text(Loc.t("取消")) } },
             )
         }
 
         else -> {
             val title = when (d) {
-                "newFile" -> "新建文件"
-                "newFolder" -> "新建文件夹"
-                "renameNode" -> "重命名"
-                else -> "输入"
+                "newFile" -> Loc.t("新建文件")
+                "newFolder" -> Loc.t("新建文件夹")
+                "renameNode" -> Loc.t("重命名")
+                else -> Loc.t("输入")
             }
             val label = when (d) {
-                "newFolder" -> "文件夹名称"
-                else -> "名称"
+                "newFolder" -> Loc.t("文件夹名称")
+                else -> Loc.t("名称")
             }
             AlertDialog(
                 onDismissRequest = { c.closeDialog() },
@@ -1611,9 +1622,9 @@ private fun IdeDialogs(c: IdeController) {
                     )
                 },
                 confirmButton = {
-                    TextButton(onClick = { applyNodeDialog(c, d, field.text) }) { Text("确定") }
+                    TextButton(onClick = { applyNodeDialog(c, d, field.text) }) { Text(Loc.t("确定")) }
                 },
-                dismissButton = { TextButton(onClick = { c.closeDialog() }) { Text("取消") } },
+                dismissButton = { TextButton(onClick = { c.closeDialog() }) { Text(Loc.t("取消")) } },
             )
         }
     }

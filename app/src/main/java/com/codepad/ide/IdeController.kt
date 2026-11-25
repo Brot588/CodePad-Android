@@ -59,7 +59,7 @@ class IdeController(private val activity: MainActivity) {
     var editorFocused by mutableStateOf(false)
     var bottomTab by mutableStateOf(TERMINAL_TAB)
     var terminalHeight by mutableStateOf(260)
-    var statusLine by mutableStateOf("就绪")
+    var statusLine by mutableStateOf(Loc.t("就绪"))
     var dialog by mutableStateOf<String?>(null)
     var dialogTarget by mutableStateOf<File?>(null)
     var toast by mutableStateOf<String?>(null)
@@ -87,7 +87,7 @@ class IdeController(private val activity: MainActivity) {
                 sendActiveToEditor()
                 ensureWebPreview(active)
                 applyEditorSettings()
-                statusLine = "编辑器就绪"
+                statusLine = Loc.t("编辑器就绪")
             }
         }
 
@@ -133,7 +133,7 @@ class IdeController(private val activity: MainActivity) {
             ui {
                 val f = File(path)
                 if (!f.isFile) {
-                    toast = "定义所在文件打不开: " + path
+                    toast = Loc.t("定义所在文件打不开: ") + path
                     return@ui
                 }
                 open(f)
@@ -169,7 +169,7 @@ class IdeController(private val activity: MainActivity) {
     fun switchProject(p: Project, persist: Boolean = true) {
         if (dirty) saveBuffer(null)
         // 切工程时把还在跑/还在调的东西收掉
-        if (debugActive) endDebug("已切换工程")
+        if (debugActive) endDebug(Loc.t("已切换工程"))
         lsp?.stop()
         lsp = null
         lspProject = ""
@@ -195,7 +195,7 @@ class IdeController(private val activity: MainActivity) {
     }
 
     fun createProject(name: String, template: String) {
-        val p = Projects.create(name.ifBlank { "未命名工程" }, template)
+        val p = Projects.create(name.ifBlank { Loc.t("未命名工程") }, template)
         refreshProjects()
         switchProject(p)
         if (template == com.codepad.ide.fs.Templates.RUST) {
@@ -224,7 +224,7 @@ class IdeController(private val activity: MainActivity) {
         }
         refreshProjects()
         refreshTree()
-        toast = "工程已重命名"
+        toast = Loc.t("工程已重命名")
     }
 
     fun deleteCurrentProject() {
@@ -235,9 +235,9 @@ class IdeController(private val activity: MainActivity) {
         tabs = emptyList()
         active = null
         refreshProjects()
-        val next = projects.firstOrNull() ?: Projects.create("示例工程", com.codepad.ide.fs.Templates.MULTI)
+        val next = projects.firstOrNull() ?: Projects.create(Loc.t("示例工程"), com.codepad.ide.fs.Templates.MULTI)
         switchProject(next)
-        toast = "工程已删除"
+        toast = Loc.t("工程已删除")
     }
 
     // --------------------------------------------------------------- 文件树
@@ -360,7 +360,7 @@ class IdeController(private val activity: MainActivity) {
         try {
             val renamed = Workspace.rename(file, newName)
             if (renamed == null) {
-                toast = "重命名失败：名称重复或非法"
+                toast = Loc.t("重命名失败：名称重复或非法")
                 return
             }
             // 重命名文件夹时，里面的已打开文件也要跟着改路径
@@ -403,7 +403,7 @@ class IdeController(private val activity: MainActivity) {
 
     // --------------------------------------------------------------- 移动
 
-    /** 工程内所有文件夹（含根目录），用于"移动到文件夹"选择器 */
+    /** 工程内所有文件夹（含根目录），用于Loc.t("移动到文件夹")选择器 */
     fun allFolders(): List<File> {
         val root = project?.dir ?: return emptyList()
         val out = ArrayList<File>()
@@ -419,22 +419,22 @@ class IdeController(private val activity: MainActivity) {
     fun moveNode(src: File, destDir: File) {
         val root = project?.dir ?: return
         if (!destDir.isDirectory) {
-            toast = "目标不是文件夹"
+            toast = Loc.t("目标不是文件夹")
             return
         }
         if (!Workspace.isUnder(src, root) || !Workspace.isUnder(destDir, root)) {
-            toast = "只能在当前工程内移动"
+            toast = Loc.t("只能在当前工程内移动")
             return
         }
         if (Workspace.isUnder(destDir, src)) {
-            toast = "不能移动到自身或自己的子文件夹里"
+            toast = Loc.t("不能移动到自身或自己的子文件夹里")
             return
         }
         if (src.parentFile?.absolutePath == destDir.absolutePath) return
 
         val target = File(destDir, src.name)
         if (target.exists()) {
-            toast = "目标文件夹里已有同名项"
+            toast = Loc.t("目标文件夹里已有同名项")
             return
         }
         var ok = false
@@ -453,7 +453,7 @@ class IdeController(private val activity: MainActivity) {
             }
         }
         if (!ok) {
-            toast = "移动失败"
+            toast = Loc.t("移动失败")
             return
         }
 
@@ -470,7 +470,7 @@ class IdeController(private val activity: MainActivity) {
         }.toSet()
         expandFolder(destDir)
         refreshTree()
-        toast = "已移动到 " + (if (destDir == root) "工程根目录" else destDir.name)
+        toast = Loc.t("已移动到 ") + (if (destDir == root) Loc.t("工程根目录") else destDir.name)
     }
 
     private fun copyRecursive(src: File, dst: File) {
@@ -521,16 +521,16 @@ class IdeController(private val activity: MainActivity) {
 
     fun startDebug() {
         val f = active ?: run {
-            toast = "先打开一个文件"
+            toast = Loc.t("先打开一个文件")
             return
         }
         val debugExt = listOf(".py", ".js", ".c", ".cpp", ".cc", ".cxx", ".rs")
         if (debugExt.none { f.name.endsWith(it) }) {
-            toast = "目前支持 Python / JavaScript / C / Rust 调试"
+            toast = Loc.t("目前支持 Python / JavaScript / C / Rust 调试")
             return
         }
         if (debugActive) {
-            toast = "已经在调试中"
+            toast = Loc.t("已经在调试中")
             return
         }
         saveBuffer(null)
@@ -539,7 +539,7 @@ class IdeController(private val activity: MainActivity) {
         bottomTab = DEBUG_TAB
         debugActive = true
         debugPaused = false
-        debugReason = "启动中…"
+        debugReason = Loc.t("启动中…")
         debugLine = 0
         debugVars = emptyList()
         debugStack = emptyList()
@@ -584,7 +584,7 @@ class IdeController(private val activity: MainActivity) {
         bottomTab = DEBUG_TAB
         debugActive = true
         debugPaused = false
-        debugReason = "准备中…"
+        debugReason = Loc.t("准备中…")
         debugLine = 0
         debugVars = emptyList()
         debugStack = emptyList()
@@ -610,7 +610,7 @@ class IdeController(private val activity: MainActivity) {
             outText = o.optString("out", "")
             code = o.optInt("code", 0)
         } catch (t: Throwable) {
-            outText = "调试器启动失败: " + (t.message ?: t.javaClass.simpleName)
+            outText = Loc.t("调试器启动失败: ") + (t.message ?: t.javaClass.simpleName)
             code = 1
         } finally {
             val text = outText
@@ -618,7 +618,7 @@ class IdeController(private val activity: MainActivity) {
             ui {
                 if (text.isNotEmpty()) appendTerminal(text.replace("\n", "\r\n"))
                 appendTerminal("\u001b[38;5;244m● 调试结束，退出码 $exitCode\u001b[0m\r\n")
-                endDebug("已结束")
+                endDebug(Loc.t("已结束"))
             }
         }
     }
@@ -636,7 +636,7 @@ class IdeController(private val activity: MainActivity) {
                 code = 1
             }
         } catch (t: Throwable) {
-            outText = "调试器启动失败: " + (t.message ?: t.javaClass.simpleName)
+            outText = Loc.t("调试器启动失败: ") + (t.message ?: t.javaClass.simpleName)
             code = 1
         } finally {
             val text = outText
@@ -644,7 +644,7 @@ class IdeController(private val activity: MainActivity) {
             ui {
                 if (text.isNotEmpty()) appendTerminal(text.replace("\n", "\r\n"))
                 appendTerminal("\u001b[38;5;244m● 调试结束，退出码 $exitCode\u001b[0m\r\n")
-                endDebug("已结束")
+                endDebug(Loc.t("已结束"))
             }
         }
     }
@@ -664,10 +664,10 @@ class IdeController(private val activity: MainActivity) {
             "pause" -> {
                 debugPaused = true
                 debugReason = when (o.optString("reason")) {
-                    "breakpoint" -> "断点"
-                    "step" -> "单步进入"
-                    "next" -> "单步跳过"
-                    "return" -> "跳出"
+                    "breakpoint" -> Loc.t("断点")
+                    "step" -> Loc.t("单步进入")
+                    "next" -> Loc.t("单步跳过")
+                    "return" -> Loc.t("跳出")
                     else -> o.optString("reason")
                 }
                 debugLine = o.optInt("line", 0)
@@ -695,7 +695,7 @@ class IdeController(private val activity: MainActivity) {
             }
             "exit" -> {
                 debugPaused = false
-                if (isNativeDebug()) endDebug("已结束")
+                if (isNativeDebug()) endDebug(Loc.t("已结束"))
             }
         }
     }
@@ -726,14 +726,14 @@ class IdeController(private val activity: MainActivity) {
         } else {
             DebugBridge.send("stop")
         }
-        endDebug("已停止")
+        endDebug(Loc.t("已停止"))
     }
 
     private fun isNativeDebug(): Boolean = debugKind == "c" || debugKind == "rust"
 
     private fun cCommand(cmd: String) {
         debugPaused = false
-        debugReason = "运行中…"
+        debugReason = Loc.t("运行中…")
         js("CP.clearDebugLine()")
         CDebugger.command(cmd)
     }
@@ -741,7 +741,7 @@ class IdeController(private val activity: MainActivity) {
     private fun debugSend(cmd: String) {
         if (!debugActive) return
         debugPaused = false
-        debugReason = "运行中…"
+        debugReason = Loc.t("运行中…")
         js("CP.clearDebugLine()")
         DebugBridge.send(cmd)
     }
@@ -841,7 +841,7 @@ class IdeController(private val activity: MainActivity) {
     fun toggleWebPreviewMenu() {
         val f = active
         if (f == null || !isWebFile(f)) {
-            toast = "当前文件不是网页（html/css/js）"
+            toast = Loc.t("当前文件不是网页（html/css/js）")
             return
         }
         js("CP.togglePreview()")
@@ -890,7 +890,7 @@ class IdeController(private val activity: MainActivity) {
         Thread({
             try {
                 if (!com.codepad.ide.run.CToolchain.ensureGit { m -> ui { appendTerminal(m + "\r\n") } }) {
-                    ui { toast = "git 不可用"; gitBusy = false }
+                    ui { toast = Loc.t("git 不可用"); gitBusy = false }
                     return@Thread
                 }
                 val repo = com.codepad.ide.run.GitUtil.hasRepo(dir)
@@ -996,7 +996,7 @@ class IdeController(private val activity: MainActivity) {
                 val out = com.codepad.ide.run.GitUtil.run(dir, listOf("init"))
                 ui {
                     appendTerminal(out.replace("\n", "\r\n"))
-                    toast = "已初始化 git 仓库"
+                    toast = Loc.t("已初始化 git 仓库")
                 }
                 gitRefresh()
             } catch (t: Throwable) {
@@ -1009,7 +1009,7 @@ class IdeController(private val activity: MainActivity) {
         val dir = project?.dir ?: return
         val msg = gitCommitMsg.trim()
         if (msg.isEmpty()) {
-            toast = "先写提交信息"
+            toast = Loc.t("先写提交信息")
             return
         }
         Thread({
@@ -1018,10 +1018,10 @@ class IdeController(private val activity: MainActivity) {
                 ui {
                     appendTerminal(out.replace("\n", "\r\n"))
                     if (out.contains("nothing to commit") || out.contains("no changes added")) {
-                        toast = "没有暂存的改动（先点 ＋ 或「全部暂存」）"
+                        toast = Loc.t("没有暂存的改动（先点 ＋ 或「全部暂存」）")
                     } else {
                         gitCommitMsg = ""
-                        toast = "已提交"
+                        toast = Loc.t("已提交")
                     }
                 }
                 gitRefresh()
@@ -1207,7 +1207,7 @@ class IdeController(private val activity: MainActivity) {
                 } catch (_: Throwable) {
                     ""
                 }
-                val name = metaName.ifBlank { display ?: "导入工程" }
+                val name = metaName.ifBlank { display ?: Loc.t("导入工程") }
                 val p = com.codepad.ide.fs.Projects.create(name, com.codepad.ide.fs.Templates.EMPTY)
                 tmpDir.copyRecursively(p.dir, overwrite = true)
                 tmpDir.deleteRecursively()
@@ -1272,7 +1272,7 @@ class IdeController(private val activity: MainActivity) {
     /** CMake 多目标：选择一个默认运行的可执行文件 */
     fun chooseRunTarget() {
         if (CToolchain.lastCmakeTargets.isEmpty()) {
-            toast = "先运行一次 CMake 工程，再选目标"
+            toast = Loc.t("先运行一次 CMake 工程，再选目标")
             return
         }
         openDialog("runTarget", null)
@@ -1464,6 +1464,7 @@ class IdeController(private val activity: MainActivity) {
 
     private fun loadSettings() {
         val sp = settingsPrefs
+        Loc.lang = sp.getString("lang", "zh") ?: "zh"
         editorFontSize = sp.getInt("editorFont", 13)
         editorTabSize = sp.getInt("tabSize", 4)
         editorWordWrap = sp.getBoolean("wordWrap", false)
@@ -1480,6 +1481,11 @@ class IdeController(private val activity: MainActivity) {
 
     fun applyTerminalSettings() {
         termJs("CP.setFontSize(" + terminalFontSize + ")")
+    }
+
+    fun setLang(v: String) {
+        Loc.lang = v
+        settingsPrefs.edit().putString("lang", v).apply()
     }
 
     fun changeEditorFontSize(v: Int) {
@@ -1556,8 +1562,8 @@ class IdeController(private val activity: MainActivity) {
             ui {
                 searchResults = hits
                 searchSummary = when {
-                    hits.isEmpty() -> "没有匹配"
-                    hits.size >= 300 -> "300+ 处（已截断）"
+                    hits.isEmpty() -> Loc.t("没有匹配")
+                    hits.size >= 300 -> Loc.t("300+ 处（已截断）")
                     else -> "${hits.size} 处匹配"
                 }
                 searchBusy = false
@@ -1568,7 +1574,7 @@ class IdeController(private val activity: MainActivity) {
     fun openHit(h: com.codepad.ide.fs.SearchService.Hit) {
         val f = File(h.path)
         if (!f.isFile) {
-            toast = "文件不存在了"
+            toast = Loc.t("文件不存在了")
             return
         }
         open(f)
@@ -1651,7 +1657,7 @@ class IdeController(private val activity: MainActivity) {
     fun reloadExtensions() {
         Languages.reload()
         refreshTree()
-        toast = "扩展已重新加载"
+        toast = Loc.t("扩展已重新加载")
     }
 
     fun closeDialog() {
