@@ -18,7 +18,9 @@ import java.util.concurrent.TimeUnit
  */
 object CDebugger {
 
-    private var server: Process? = null
+    private var serverPfd: android.os.ParcelFileDescriptor? = null
+    private var serverPtyFd: Int = 0
+    private var serverPidRef: Int = 0
     private var inferiorPid: Int = 0
 
     /** 被调试程序的标准输出（gdbserver 会转发到它的 stdout） */
@@ -109,38 +111,76 @@ object CDebugger {
 
         cleanup()
         log(Loc.t("启动 gdbserver"))
-        val pb = ProcessBuilder(CToolchain.binary("gdbserver").absolutePath, ":0", exe.absolutePath)
-        pb.directory(source.parentFile)
-        pb.redirectErrorStream(true)
-        pb.environment()["LD_LIBRARY_PATH"] = CToolchain.libPath()
-        pb.environment()["HOME"] = App.ctx.filesDir.absolutePath
-        pb.environment()["SHELL"] = "/system/bin/sh"
-        val process = pb.start()
-        server = process
+        // 用 PTY 跑 gdbserver：被调试程序看到的是 tty，stdout 行缓冲，
+        // printf 的输出能立刻透出来（管道里 libc 会攒满 4KB 才吐）。
+        val envArr = arrayOf(
+            "LD_LIBRARY_PATH=" + CToolchain.libPath(),
+            "HOME=" + App.ctx.filesDir.absolutePath,
+            "SHELL=/system/bin/sh",
+            "PATH=" + CToolchain.root.absolutePath + "/bin:/system/bin:/system/xbin",
+        )
+        val ptyRes = com.codepad.ide.term.Pty.start(
+            CToolchain.binary("gdbserver").absolutePath,
+            arrayOf("gdbserver", ":0", exe.absolutePath),
+            source.parentFile?.absolutePath ?: App.ctx.filesDir.absolutePath,
+            envArr,
+            24,
+            200,
+        )
+        val parts = ptyRes.split(":")
+        if (parts.size < 2) {
+            log(Loc.t("连接 gdbserver 失败"))
+            publish("{\"type\":\"exit\",\"code\":1}")
+            return
+        }
+        val ptyFd = parts[0].toIntOrNull() ?: -1
+        val serverPid = parts[1].toIntOrNull() ?: 0
+        if (ptyFd < 0) {
+            log(Loc.t("连接 gdbserver 失败"))
+            publish("{\"type\":\"exit\",\"code\":1}")
+            return
+        }
+        serverPtyFd = ptyFd
+        serverPidRef = serverPid
+        val pfd = android.os.ParcelFileDescriptor.adoptFd(ptyFd)
+        serverPfd = pfd
 
         val portRef = java.util.concurrent.atomic.AtomicInteger(0)
         val portLatch = java.util.concurrent.CountDownLatch(1)
-        val reader = Thread {
+        Thread {
             try {
-                process.inputStream.bufferedReader().forEachLine { line ->
-                    Log.i("CodePadC", "gdbserver: $line")
-                    val protocol = line.startsWith("Listening on port") ||
-                        line.startsWith("Remote debugging") ||
-                        line.contains("created; pid =") ||
-                        line.startsWith("Exiting") ||
-                        line.startsWith("Can't bind")
-                    if (!protocol) onOutput?.invoke(line)
-                    val m = Regex("Listening on port\\s+(\\d+)").find(line)
-                    if (m != null && portRef.get() == 0) {
-                        portRef.set(m.groupValues[1].toIntOrNull() ?: 0)
-                        portLatch.countDown()
+                val input = java.io.FileInputStream(pfd.fileDescriptor)
+                val buf = ByteArray(4096)
+                val lineBuf = StringBuilder()
+                while (running) {
+                    val n = input.read(buf)
+                    if (n <= 0) break
+                    val chunk = String(buf, 0, n, Charsets.UTF_8)
+                    lineBuf.append(chunk)
+                    while (true) {
+                        val idx = lineBuf.indexOf("\n")
+                        if (idx < 0) break
+                        var line = lineBuf.substring(0, idx).trimEnd('\r')
+                        lineBuf.delete(0, idx + 1)
+                        Log.i("CodePadC", "gdbserver: " + line)
+                        val m = Regex("Listening on port\\s+(\\d+)").find(line)
+                        if (m != null && portRef.get() == 0) {
+                            portRef.set(m.groupValues[1].toIntOrNull() ?: 0)
+                            portLatch.countDown()
+                        }
+                        val protocol = line.startsWith("Listening on port") ||
+                            line.startsWith("Remote debugging") ||
+                            line.contains("created; pid =") ||
+                            line.startsWith("Exiting") ||
+                            line.startsWith("Can't bind")
+                        if (!protocol && line.isNotEmpty()) onOutput?.invoke(line)
                     }
                 }
             } catch (_: Throwable) {
             }
         }.also { it.isDaemon = true; it.start() }
 
-        portLatch.await(6, TimeUnit.SECONDS)
+        portLatch.await(8, TimeUnit.SECONDS)
         val port = portRef.get()
         if (port <= 0) {
             log(Loc.t("连接 gdbserver 失败"))
@@ -575,14 +615,17 @@ object CDebugger {
     }
 
     private fun cleanup() {
-        val srv = server
-        server = null
-        if (srv != null) {
+        try {
+            serverPfd?.close()
+        } catch (_: Throwable) {
+        }
+        serverPfd = null
+        if (serverPidRef > 0) {
             try {
-                srv.destroy()
-                if (!srv.waitFor(300, TimeUnit.MILLISECONDS)) srv.destroyForcibly()
+                com.codepad.ide.term.Pty.kill(serverPidRef)
             } catch (_: Throwable) {
             }
+            serverPidRef = 0
         }
         // gdbserver 被 kill 后，被调试进程可能还停在 ptrace-stopped 状态
         val ip = inferiorPid
