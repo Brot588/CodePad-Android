@@ -512,12 +512,18 @@ object CDebugger {
         source: File,
     ): List<Triple<String, String, Int>> {
         val frames = ArrayList<Triple<String, String, Int>>()
+        // pc / lr / 帧指针链可能指向同一个函数同一行，去重，避免调用栈出现重复帧
+        fun add(f: Triple<String, String, Int>?) {
+            if (f == null) return
+            if (frames.isNotEmpty() && frames.last() == f) return
+            frames.add(f)
+        }
         val pc = regs.getOrNull(32) ?: return frames
-        frameOf(pc, base, dwarf, source)?.let { frames.add(it) }
+        add(frameOf(pc, base, dwarf, source))
         // 叶子函数可能不建帧指针，x30 里就是调用者的返回地址
         val lr = regs.getOrNull(30) ?: 0L
         if (lr > 0) {
-            frameOf(lr, base, dwarf, source)?.let { frames.add(it) }
+            add(frameOf(lr, base, dwarf, source))
         }
         var fp = regs.getOrNull(29) ?: return frames
         var guard = 0
@@ -527,7 +533,7 @@ object CDebugger {
             if (ret == 0L) break
             // 只保留能落到已知函数里的帧，链条一旦跑偏就停
             val frame = frameOf(ret, base, dwarf, source) ?: break
-            frames.add(frame)
+            add(frame)
             if (nextFp <= fp) break
             fp = nextFp
         }
