@@ -853,15 +853,9 @@ private fun BottomDock(c: IdeController, panelHeight: Int) {
             Spacer(Modifier.weight(1f))
 
             if (c.bottomTab == TERMINAL_TAB) {
-                IconButton(onClick = { c.ensureTerminal(); c.clearTerminal() }, modifier = Modifier.size(24.dp)) {
-                    Icon(Icons.Filled.Refresh, null, tint = Muted, modifier = Modifier.size(13.dp))
-                }
-                IconButton(onClick = { c.restartTerminal() }, modifier = Modifier.size(24.dp)) {
-                    Icon(Icons.Filled.Terminal, null, tint = Muted, modifier = Modifier.size(13.dp))
-                }
-                IconButton(onClick = { c.showTerminal = false }, modifier = Modifier.size(24.dp)) {
-                    Icon(Icons.Filled.Close, null, tint = Muted, modifier = Modifier.size(13.dp))
-                }
+                DockAction("清屏") { c.ensureTerminal(); c.clearTerminal() }
+                DockAction("重启") { c.restartTerminal() }
+                DockAction("✕") { c.showTerminal = false }
             } else {
                 if (c.debugActive) {
                     if (c.debugPaused) {
@@ -913,6 +907,17 @@ private fun DockTab(label: String, active: Boolean, onClick: () -> Unit) {
             .clickable(onClick = onClick)
             .padding(horizontal = 10.dp, vertical = 4.dp),
     )
+}
+
+@Composable
+private fun DockAction(label: String, onClick: () -> Unit) {
+    TextButton(
+        onClick = onClick,
+        contentPadding = PaddingValues(horizontal = 8.dp),
+        modifier = Modifier.height(26.dp),
+    ) {
+        Text(label, fontSize = 10.sp, color = Muted)
+    }
 }
 
 @Composable
