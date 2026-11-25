@@ -150,6 +150,7 @@ fun IdeScreen(c: IdeController) {
         snackbarHost = { SnackbarHost(snackbar) },
         topBar = {
             TopAppBar(
+                expandedHeight = 48.dp,
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = Panel,
                     titleContentColor = Color(0xFFD7DCE5),
