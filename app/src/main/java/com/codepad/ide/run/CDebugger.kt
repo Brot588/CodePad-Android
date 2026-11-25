@@ -105,9 +105,8 @@ object CDebugger {
         log(Loc.t("调试信息：%s 行 / %s 个函数", table.size, dwarf?.all()?.size ?: 0))
 
         cleanup()
-        val port = freePort()
-        log(Loc.t("启动 gdbserver :%s", port))
-        val pb = ProcessBuilder(CToolchain.binary("gdbserver").absolutePath, ":$port", exe.absolutePath)
+        log(Loc.t("启动 gdbserver"))
+        val pb = ProcessBuilder(CToolchain.binary("gdbserver").absolutePath, ":0", exe.absolutePath)
         pb.directory(source.parentFile)
         pb.redirectErrorStream(true)
         pb.environment()["LD_LIBRARY_PATH"] = CToolchain.libPath()
@@ -116,16 +115,30 @@ object CDebugger {
         val process = pb.start()
         server = process
 
+        val portRef = java.util.concurrent.atomic.AtomicInteger(0)
+        val portLatch = java.util.concurrent.CountDownLatch(1)
         val reader = Thread {
             try {
                 process.inputStream.bufferedReader().forEachLine { line ->
                     Log.i("CodePadC", "gdbserver: $line")
+                    val m = Regex("Listening on port\\s+(\\d+)").find(line)
+                    if (m != null && portRef.get() == 0) {
+                        portRef.set(m.groupValues[1].toIntOrNull() ?: 0)
+                        portLatch.countDown()
+                    }
                 }
             } catch (_: Throwable) {
             }
         }.also { it.isDaemon = true; it.start() }
 
-        Thread.sleep(300)
+        portLatch.await(6, TimeUnit.SECONDS)
+        val port = portRef.get()
+        if (port <= 0) {
+            log(Loc.t("连接 gdbserver 失败"))
+            publish("{\"type\":\"exit\",\"code\":1}")
+            return
+        }
+        log(Loc.t("gdbserver 端口 %s", port))
         val socket = Socket()
         var connected = false
         for (attempt in 0 until 40) {
@@ -196,22 +209,6 @@ object CDebugger {
             var pc = gdb.readPc()
             lastPc = pc
             var line = CToolchain.lineForAddress(table, pc - base) ?: 0
-            if (command == "s") {
-                var guard = 0
-                // 一直走到「新的、有实际内容」的源码行（跳过 } 这种块边界）
-                while (running && guard++ < 300) {
-                    val meaningless = line == lastPublished || isTrivialLine(line)
-                    if (!meaningless) break
-                    val r2 = gdb.send("s")
-                    if (r2.startsWith("W") || r2.startsWith("X")) {
-                        val code = r2.removePrefix("W").substring(0, 2).toIntOrNull(16) ?: 0
-                        publish("{\"type\":\"exit\",\"code\":$code}")
-                        return
-                    }
-                    pc = gdb.readPc()
-                    line = CToolchain.lineForAddress(table, pc - base) ?: line
-                }
-            }
             lastPublished = line
             Log.i("CodePadRSP", "pc=0x" + java.lang.Long.toHexString(pc) + " line=" + line)
             val reason = if (lastCommand == "c") "断点" else "单步"
@@ -566,22 +563,6 @@ object CDebugger {
         } catch (_: Throwable) {
         }
         cleanup()
-    }
-
-    /** 找一个当前真的能 bind 的端口；旧会话残留的 gdbserver 会占着端口，随机撞上就连不上了 */
-    private fun freePort(): Int {
-        for (i in 0 until 60) {
-            val p = 50000 + (System.nanoTime() % 10000).toInt()
-            try {
-                java.net.ServerSocket().use { ss ->
-                    ss.reuseAddress = true
-                    ss.bind(java.net.InetSocketAddress("127.0.0.1", p))
-                }
-                return p
-            } catch (_: Throwable) {
-            }
-        }
-        return 50000 + (System.nanoTime() % 10000).toInt()
     }
 
     private fun cleanup() {
