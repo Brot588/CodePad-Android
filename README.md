@@ -5,7 +5,7 @@
 一个**完全离线**的 Android 平板 IDE。不需要网络、不需要 Termux、不需要 root：
 工具链随 APK 一起装好，打开就能写代码、编译、下断点、提交 Git。
 
-![编辑器与终端](docs/screenshot-terminal.png)
+![主界面](docs/screenshot-main.png)
 
 ## 它和"手机代码编辑器"的区别
 
@@ -21,24 +21,33 @@
 
 ### 编辑
 - Monaco 编辑器，语法高亮、括号匹配、多光标、查找替换
-- 多标签页；关闭脏标签会先保存
-- **全局搜索**：顶栏点 🔍 直接在标题栏输入，边打边出结果（下拉列表带文件:行号和代码片段），点一下跳到对应行；自动跳过大文件/二进制/构建目录
+- 多标签页；标题栏一行显示「文件名 + 工程名」，不再占两行
+- **全局搜索**：顶栏 🔍 直接在标题栏输入，边打边出结果（文件:行号 + 代码片段），点一下跳到对应行；自动跳过大文件/二进制/构建目录
 - **设置**：编辑器字号、缩进宽度、自动换行、终端字号，改完即时生效并记住
 - C/C++ 补全与悬停（clangd），Rust 补全（rust-analyzer，需 Cargo 工程）
-- **跳转到定义**：⋮ →「跳转到定义（F12）」，光标停在符号上执行；**支持跨文件**（例如从 .c 跳到 .h 里的声明）
+- **跳转到定义**（F12）：⋮ 菜单触发，**支持跨文件**（从 .c 跳到 .h 的声明）
+
+![全局搜索](docs/screenshot-search.png)
+
+![设置](docs/screenshot-settings.png)
 
 ### 工程
-- 一个工程 = 一个文件夹，支持重命名、删除、切换
+- 顶栏 **工程** 菜单：切换 / 新建 / 导入 / 导出 / 重命名 / 删除，一处集中管理
+- 一个工程 = 一个文件夹；资源管理器不再重复显示工程名
 - 文件树支持拖拽移动、文件夹层级、Material 真实图标
 - 模板：空工程 / C / C++·CMake / Python / Rust / Web / 多语言
 - **整包导出/导入 zip**（走系统文件选择器，可存到下载目录）
+
+![工程菜单](docs/screenshot-project-menu.png)
 
 ### 编译与运行
 - **C / C++**：clang 21 + lld，CMake 工程自动 `cmake --build`，支持多 target 选择
 - **Rust**：rustc 1.100 + cargo，有 `Cargo.toml` 时走 `cargo run`
 - **Python**：CPython（Chaquopy 打包，支持标准库）
 - **JavaScript**：QuickJS
-- **Shell**：真实 PTY（JNI forkpty），xterm.js 前端，自定义提示符
+- **Shell**：真实 PTY（JNI forkpty），xterm.js 前端；提示符单行显示当前路径与 git 分支，面板右上可清屏 / 重启 / 收起
+
+![终端](docs/screenshot-terminal.png)
 
 ### 调试
 - 断点：点行号左侧红点，支持条件无、命中高亮
@@ -47,7 +56,7 @@
 - C/C++/Rust 走 gdbserver + 自研 DWARF 解析；Python 用 `sys.settrace`；JS 用 QuickJS 行级钩子
 - Rust 能展开 `String`、`Vec<T>`、结构体字段（处理了 Rust 字段重排和指针 MTE 标记）
 
-![Rust 变量](docs/screenshot-rust-values.png)
+![断点调试](docs/screenshot-debug.png)
 
 ### Git
 - 内置 git 2.56.1，不依赖系统 git；首次使用解压约 13MB
@@ -70,11 +79,11 @@
 
 只提供 **arm64-v8a**，要求 Android 8.0+。
 
-`v4.2` 的 APK 校验信息：
+`v4.7` 的 APK 校验信息：
 
 ```
-CodePad-4.2-arm64.apk   226.4 MB (237,354,383 字节)
-SHA-256: 0d43fe58167b79a950b5aeca5af6ea546b0ada7a72d4c6414a42fd6c908080b1
+CodePad-4.7-arm64.apk   226.4 MB (237,392,931 字节)
+SHA-256: 7a0721ae9352bc852c456586548145af69c37bad6655bd978f9a7430d89e7e4a
 ```
 
 APK 约 226MB，因为内置了完整的 C/C++/Rust 工具链。
