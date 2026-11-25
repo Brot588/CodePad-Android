@@ -1,5 +1,7 @@
 package com.codepad.ide.run
 
+import com.codepad.ide.Loc
+
 import android.util.Log
 import com.codepad.ide.App
 import org.json.JSONArray
@@ -46,7 +48,7 @@ object CDebugger {
             try {
                 runSession(source, breakpoints, rust, publish, log)
             } catch (t: Throwable) {
-                log("C 调试失败: " + (t.message ?: t.javaClass.simpleName))
+                log(Loc.t("C 调试失败: ") + (t.message ?: t.javaClass.simpleName))
                 publish("{\"type\":\"exit\",\"code\":1}")
             } finally {
                 running = false
@@ -63,7 +65,7 @@ object CDebugger {
         log: (String) -> Unit,
     ) {
         if (!CToolchain.isReady()) {
-            log("正在准备 C 工具链…")
+            log(Loc.t("正在准备 C 工具链…"))
             if (!CToolchain.ensure { msg -> log(msg) }) {
                 publish("{\"type\":\"exit\",\"code\":1}")
                 return
@@ -74,12 +76,12 @@ object CDebugger {
         var ok: Boolean
         val cmakeRoot = if (rust) null else CToolchain.cmakeRootOf(source)
         if (cmakeRoot != null) {
-            log("CMake 构建 ${cmakeRoot.name} …")
+            log(Loc.t("CMake 构建 %s …", cmakeRoot.name))
             val built = CToolchain.buildCmake(cmakeRoot) { line -> log(line) }
             ok = built != null
             if (built != null) exe = built
         } else {
-            log("编译 ${source.name} …")
+            log(Loc.t("编译 %s …", source.name))
             val result = when {
                 rust -> compileRust(source, exe)
                 source.name.endsWith(".cpp") || source.name.endsWith(".cc") || source.name.endsWith(".cxx") ->
@@ -90,7 +92,7 @@ object CDebugger {
             if (result.second.isNotBlank()) log(result.second.trimEnd())
         }
         if (!ok) {
-            log("编译失败")
+            log(Loc.t("编译失败"))
             publish("{\"type\":\"exit\",\"code\":1}")
             return
         }
@@ -99,10 +101,10 @@ object CDebugger {
         srcLines = try { source.readLines() } catch (_: Throwable) { emptyList() }
         srcPath = source.absolutePath
         dwarf = CToolchain.debugInfo(exe)
-        log("调试信息：${table.size} 行 / ${dwarf?.all()?.size ?: 0} 个函数")
+        log(Loc.t("调试信息：%s 行 / %s 个函数", table.size, dwarf?.all()?.size ?: 0))
 
         val port = 50000 + (System.nanoTime() % 10000).toInt()
-        log("启动 gdbserver :$port")
+        log(Loc.t("启动 gdbserver :%s", port))
         val pb = ProcessBuilder(CToolchain.binary("gdbserver").absolutePath, ":$port", exe.absolutePath)
         pb.directory(source.parentFile)
         pb.redirectErrorStream(true)
@@ -134,7 +136,7 @@ object CDebugger {
             }
         }
         if (!connected) {
-            log("连接 gdbserver 失败")
+            log(Loc.t("连接 gdbserver 失败"))
             publish("{\"type\":\"exit\",\"code\":1}")
             return
         }
@@ -151,16 +153,16 @@ object CDebugger {
         val addresses = ArrayList<Long>()
         for (bp in breakpoints) {
             val a = CToolchain.addressForLine(table, bp)
-            if (a != null) addresses.add(base + a) else log("第 $bp 行没有可执行代码，已跳过")
+            if (a != null) addresses.add(base + a) else log(Loc.t("第 %s 行没有可执行代码，已跳过", bp))
         }
 
         for (addr in addresses) {
             val reply = gdb.send("Z0,%x,4".format(addr))
             Log.i("CodePadRSP", "Z0 0x%x -> %s".format(addr, reply))
-            if (reply != "OK") log("断点设置失败 @0x%x".format(addr))
+            if (reply != "OK") log(Loc.t("断点设置失败 @0x%x", addr))
         }
 
-        log("已进入调试")
+        log(Loc.t("已进入调试"))
         var command = "c"
         lastCommand = "c"
         var lastPc = -1L
@@ -180,12 +182,12 @@ object CDebugger {
             Log.i("CodePadRSP", cmd_reply_log(command, reply))
             if (reply.startsWith("W") || reply.startsWith("X")) {
                 val code = reply.removePrefix("W").substring(0, 2).toIntOrNull(16) ?: 0
-                log("程序退出，退出码 $code")
+                log(Loc.t("程序退出，退出码 %s", code))
                 publish("{\"type\":\"exit\",\"code\":$code}")
                 return
             }
             if (!reply.startsWith("T") && !reply.startsWith("S")) {
-                log("未知停止包: $reply")
+                log(Loc.t("未知停止包: %s", reply))
                 return
             }
             var pc = gdb.readPc()

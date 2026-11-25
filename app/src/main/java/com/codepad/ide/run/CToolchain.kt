@@ -1,5 +1,7 @@
 package com.codepad.ide.run
 
+import com.codepad.ide.Loc
+
 import com.codepad.ide.App
 import java.io.BufferedInputStream
 import java.io.File
@@ -33,7 +35,7 @@ object CToolchain {
     fun ensureRust(onStatus: (String) -> Unit = {}): Boolean {
         if (!isReady() && !ensure(onStatus)) return false
         if (isRustReady()) return true
-        onStatus("解压 Rust 工具链（约 210MB）…")
+        onStatus(Loc.t("解压 Rust 工具链（约 210MB）…"))
         return try {
             App.ctx.assets.open("rust.zip").use { raw ->
                 ZipInputStream(BufferedInputStream(raw, 1 shl 16)).use { zip ->
@@ -56,10 +58,10 @@ object CToolchain {
             }
             listOf("bin/rustc", "bin/cargo").forEach { File(root, it).setExecutable(true, false) }
             rustMarker.writeText("ok")
-            onStatus("Rust 工具链就绪")
+            onStatus(Loc.t("Rust 工具链就绪"))
             true
         } catch (t: Throwable) {
-            onStatus("Rust 工具链解压失败: ${t.message}")
+            onStatus(Loc.t("Rust 工具链解压失败: %s", t.message))
             false
         }
     }
@@ -71,7 +73,7 @@ object CToolchain {
         val tmp = File(App.ctx.filesDir, "tc-extract")
         if (tmp.exists()) tmp.deleteRecursively()
         tmp.mkdirs()
-        onStatus("解压 C 工具链（约 230MB）…")
+        onStatus(Loc.t("解压 C 工具链（约 230MB）…"))
         try {
             App.ctx.assets.open("tc.zip").use { raw ->
                 ZipInputStream(BufferedInputStream(raw, 1 shl 16)).use { zip ->
@@ -104,10 +106,10 @@ object CToolchain {
                 tmp.deleteRecursively()
             }
             File(root, ".ok-$VERSION").writeText("ok")
-            onStatus("工具链就绪")
+            onStatus(Loc.t("工具链就绪"))
             return true
         } catch (t: Throwable) {
-            onStatus("工具链解压失败: ${t.message}")
+            onStatus(Loc.t("工具链解压失败: %s", t.message))
             return false
         }
     }
@@ -160,7 +162,7 @@ object CToolchain {
     fun ensureGit(onStatus: (String) -> Unit = {}): Boolean {
         if (!isReady() && !ensure(onStatus)) return false
         if (isGitReady()) return true
-        onStatus("解压 git（约 13MB）…")
+        onStatus(Loc.t("解压 git（约 13MB）…"))
         return try {
             App.ctx.assets.open("git.zip").use { raw ->
                 ZipInputStream(BufferedInputStream(raw, 1 shl 16)).use { zip ->
@@ -184,10 +186,10 @@ object CToolchain {
             listOf("bin/git", "bin/less").forEach { File(root, it).setExecutable(true, false) }
             File(root, "share/git-core/templates").mkdirs()
             gitMarker.writeText("ok")
-            onStatus("git 就绪")
+            onStatus(Loc.t("git 就绪"))
             true
         } catch (t: Throwable) {
-            onStatus("git 解压失败: ${t.message}")
+            onStatus(Loc.t("git 解压失败: %s", t.message))
             false
         }
     }
@@ -202,7 +204,7 @@ object CToolchain {
     fun ensureRustAnalyzer(onStatus: (String) -> Unit = {}): Boolean {
         if (!isReady() && !ensure(onStatus)) return false
         if (isRaReady()) return true
-        onStatus("解压 rust-analyzer（约 105MB，含 std 源码）…")
+        onStatus(Loc.t("解压 rust-analyzer（约 105MB，含 std 源码）…"))
         return try {
             App.ctx.assets.open("ra.zip").use { raw ->
                 ZipInputStream(BufferedInputStream(raw, 1 shl 16)).use { zip ->
@@ -225,10 +227,10 @@ object CToolchain {
             }
             File(root, "bin/rust-analyzer").setExecutable(true, false)
             raMarker.writeText("ok")
-            onStatus("rust-analyzer 就绪")
+            onStatus(Loc.t("rust-analyzer 就绪"))
             true
         } catch (t: Throwable) {
-            onStatus("rust-analyzer 解压失败: ${t.message}")
+            onStatus(Loc.t("rust-analyzer 解压失败: %s", t.message))
             false
         }
     }
@@ -267,7 +269,7 @@ object CToolchain {
     fun ensureClangd(onStatus: (String) -> Unit = {}): Boolean {
         if (!isReady() && !ensure(onStatus)) return false
         if (isClangdReady()) return true
-        onStatus("解压 clangd（约 18MB）…")
+        onStatus(Loc.t("解压 clangd（约 18MB）…"))
         return try {
             App.ctx.assets.open("clangd.zip").use { raw ->
                 ZipInputStream(BufferedInputStream(raw, 1 shl 16)).use { zip ->
@@ -290,10 +292,10 @@ object CToolchain {
             }
             File(root, "bin/clangd").setExecutable(true, false)
             clangdMarker.writeText("ok")
-            onStatus("clangd 就绪")
+            onStatus(Loc.t("clangd 就绪"))
             true
         } catch (t: Throwable) {
-            onStatus("clangd 解压失败: ${t.message}")
+            onStatus(Loc.t("clangd 解压失败: %s", t.message))
             false
         }
     }
@@ -339,7 +341,7 @@ object CToolchain {
     fun ensureCmake(onStatus: (String) -> Unit = {}): Boolean {
         if (!isReady() && !ensure(onStatus)) return false
         if (isCmakeReady()) return true
-        onStatus("解压 CMake 工具链（约 27MB）…")
+        onStatus(Loc.t("解压 CMake 工具链（约 27MB）…"))
         return try {
             App.ctx.assets.open("cmake.zip").use { raw ->
                 ZipInputStream(BufferedInputStream(raw, 1 shl 16)).use { zip ->
@@ -362,10 +364,10 @@ object CToolchain {
             }
             listOf("bin/cmake", "bin/make", "bin/ninja").forEach { File(root, it).setExecutable(true, false) }
             cmakeMarker.writeText("ok")
-            onStatus("CMake 就绪")
+            onStatus(Loc.t("CMake 就绪"))
             true
         } catch (t: Throwable) {
-            onStatus("CMake 解压失败: ${t.message}")
+            onStatus(Loc.t("CMake 解压失败: %s", t.message))
             false
         }
     }
@@ -483,11 +485,11 @@ object CToolchain {
             "-DCMAKE_BUILD_TYPE=Debug",
         )
         if (run(cfg) != 0) {
-            log("CMake 配置失败")
+            log(Loc.t("CMake 配置失败"))
             return null
         }
         if (run(listOf(cmake, "--build", buildDir.absolutePath)) != 0) {
-            log("CMake 构建失败")
+            log(Loc.t("CMake 构建失败"))
             return null
         }
         val exes = findExecutables(buildDir)

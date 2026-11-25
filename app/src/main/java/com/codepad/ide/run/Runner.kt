@@ -1,5 +1,7 @@
 package com.codepad.ide.run
 
+import com.codepad.ide.Loc
+
 import android.util.Log
 import com.codepad.ide.App
 import com.codepad.ide.ext.LangSpec
@@ -57,7 +59,7 @@ class Runner(private val sink: (String) -> Unit) {
                     runShell(cmd, file.parentFile, file)
                 }
             }
-            RunKind.WEB -> sink("${dim}HTML 请在编辑器里点 ▶ 预览$reset\r\n")
+            RunKind.WEB -> sink("${dim}" + Loc.t("HTML 请在编辑器里点 ▶ 预览") + "$reset\r\n")
             RunKind.NONE -> unavailable(lang)
         }
     }
@@ -110,7 +112,7 @@ class Runner(private val sink: (String) -> Unit) {
             val start = System.currentTimeMillis()
             try {
                 if (!QuickJs.loaded) {
-                    sink("${red}JavaScript 运行时未加载 (libquickjsbridge.so)$reset\r\n")
+                    sink("${red}" + Loc.t("JavaScript 运行时未加载 (libquickjsbridge.so)") + "$reset\r\n")
                     finish(1, 0)
                     return@Thread
                 }
@@ -144,8 +146,8 @@ class Runner(private val sink: (String) -> Unit) {
             val start = System.currentTimeMillis()
             try {
                 if (!Tcc.loaded) {
-                    sink("${red}C 运行时未加载 (libtccbridge.so)。$reset\r\n")
-                    sink("${dim}提示：终端里可用扩展安装 tcc 后，用外置编译。$reset\r\n")
+                    sink("${red}" + Loc.t("C 运行时未加载 (libtccbridge.so)。") + "$reset\r\n")
+                    sink("${dim}" + Loc.t("提示：终端里可用扩展安装 tcc 后，用外置编译。") + "$reset\r\n")
                     finish(1, 0)
                     return@Thread
                 }
@@ -168,13 +170,13 @@ class Runner(private val sink: (String) -> Unit) {
         Thread({
             val start = System.currentTimeMillis()
             try {
-                sink("${dim}CMake 工程：${root.name}$reset\r\n")
+                sink("${dim}" + Loc.t("CMake 工程：%s", root.name) + "$reset\r\n")
                 val exe = CToolchain.buildCmake(root) { line -> sink(line + "\r\n") }
                 if (exe == null) {
                     finish(1, System.currentTimeMillis() - start)
                     return@Thread
                 }
-                sink("${dim}运行 ${exe.name}$reset\r\n")
+                sink("${dim}" + Loc.t("运行 %s", exe.name) + "$reset\r\n")
                 val rc = streamProcess(listOf(exe.absolutePath), root, CToolchain.cmakeEnv())
                 finish(rc, System.currentTimeMillis() - start)
             } catch (t: Throwable) {
@@ -200,7 +202,7 @@ class Runner(private val sink: (String) -> Unit) {
                 }
                 val buildDir = File(App.ctx.filesDir, "build").apply { mkdirs() }
                 val exe = File(buildDir, file.nameWithoutExtension + ".cpp.bin")
-                sink("${dim}clang++ 编译 ${file.name} …$reset\r\n")
+                sink("${dim}" + Loc.t("clang++ 编译 %s …", file.name) + "$reset\r\n")
                 val (ok, out) = CToolchain.compileCpp(file, exe)
                 if (out.isNotBlank()) sink(out.replace("\n", "\r\n"))
                 if (!ok || !exe.isFile) {
@@ -251,7 +253,7 @@ class Runner(private val sink: (String) -> Unit) {
             val start = System.currentTimeMillis()
             try {
                 if (!CToolchain.isReady()) {
-                    sink("${dim}准备 C 工具链（Rust 链接复用 clang/lld）…$reset\r\n")
+                    sink("${dim}" + Loc.t("准备 C 工具链（Rust 链接复用 clang/lld）…") + "$reset\r\n")
                     if (!CToolchain.ensure { msg -> sink("$dim$msg$reset\r\n") }) {
                         finish(1, System.currentTimeMillis() - start)
                         return@Thread
@@ -286,7 +288,7 @@ class Runner(private val sink: (String) -> Unit) {
                 file.parentFile?.listFiles()?.forEach { f ->
                     if (f.name.startsWith(file.nameWithoutExtension + "_rs")) f.deleteRecursively()
                 }
-                sink("${dim}rustc 编译 ${file.name} …$reset\r\n")
+                sink("${dim}" + Loc.t("rustc 编译 %s …", file.name) + "$reset\r\n")
                 val code = streamProcess(
                     listOf(
                         File(CToolchain.root, "bin/rustc").absolutePath,
@@ -299,7 +301,7 @@ class Runner(private val sink: (String) -> Unit) {
                     env,
                 )
                 if (code != 0 || !exe.isFile) {
-                    sink("${red}编译失败（退出码 $code）$reset\r\n")
+                    sink("${red}" + Loc.t("编译失败（退出码 %s）", code) + "$reset\r\n")
                     finish(1, System.currentTimeMillis() - start)
                     return@Thread
                 }
@@ -350,14 +352,14 @@ class Runner(private val sink: (String) -> Unit) {
 
     private fun finish(code: Int, ms: Long) {
         val color = if (code == 0) green else red
-        sink("$color● 进程结束，退出码 $code$reset$dim  (${ms}ms)$reset\r\n")
+        sink("$color" + Loc.t("● 进程结束，退出码 %s", code) + "$reset$dim  (${ms}ms)$reset\r\n")
     }
 
     private fun unavailable(lang: LangSpec) {
-        sink("$red${lang.name} 暂无可用的内置运行时。$reset\r\n")
+        sink("$red" + Loc.t("%s 暂无可用的内置运行时。", lang.name) + "$reset\r\n")
         when (lang.id) {
 
-            else -> sink("${dim}可以为该语言编写扩展 manifest，指定 run 命令。$reset\r\n")
+            else -> sink("${dim}" + Loc.t("可以为该语言编写扩展 manifest，指定 run 命令。") + "$reset\r\n")
         }
     }
 

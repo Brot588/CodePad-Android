@@ -191,7 +191,7 @@ class IdeController(private val activity: MainActivity) {
         refreshTree()
         // 终端切到新工程目录
         restartTerminal(p.dir)
-        statusLine = "工程：${p.name}"
+        statusLine = Loc.t("工程：%s", p.name)
     }
 
     fun createProject(name: String, template: String) {
@@ -202,7 +202,7 @@ class IdeController(private val activity: MainActivity) {
             val main = File(p.dir, "src/main.rs")
             if (main.isFile) open(main)
         }
-        toast = "已创建工程 ${p.name}"
+        toast = Loc.t("已创建工程 %s", p.name)
     }
 
     fun renameCurrentProject(name: String) {
@@ -327,9 +327,9 @@ class IdeController(private val activity: MainActivity) {
             savedText = content
             liveText = content
             dirty = false
-            statusLine = "已保存 ${f.name}"
+            statusLine = Loc.t("已保存 %s", f.name)
         } catch (t: Throwable) {
-            toast = "保存失败: ${t.message}"
+            toast = Loc.t("保存失败: %s", t.message)
         }
     }
 
@@ -350,9 +350,9 @@ class IdeController(private val activity: MainActivity) {
                 open(f)
             }
             refreshTree()
-            statusLine = "已创建 $name"
+            statusLine = Loc.t("已创建 %s", name)
         } catch (t: Throwable) {
-            toast = "创建失败: ${t.message}"
+            toast = Loc.t("创建失败: %s", t.message)
         }
     }
 
@@ -376,9 +376,9 @@ class IdeController(private val activity: MainActivity) {
                 } else it
             }.toSet()
             refreshTree()
-            statusLine = "已重命名为 ${renamed.name}"
+            statusLine = Loc.t("已重命名为 %s", renamed.name)
         } catch (t: Throwable) {
-            toast = "重命名失败: ${t.message}"
+            toast = Loc.t("重命名失败: %s", t.message)
         }
     }
 
@@ -395,9 +395,9 @@ class IdeController(private val activity: MainActivity) {
                 liveText = ""
             }
             refreshTree()
-            statusLine = "已删除 ${file.name}"
+            statusLine = Loc.t("已删除 %s", file.name)
         } catch (t: Throwable) {
-            toast = "删除失败: ${t.message}"
+            toast = Loc.t("删除失败: %s", t.message)
         }
     }
 
@@ -448,7 +448,7 @@ class IdeController(private val activity: MainActivity) {
                 Workspace.deleteRecursively(src)
                 ok = true
             } catch (t: Throwable) {
-                toast = "移动失败: ${t.message}"
+                toast = Loc.t("移动失败: %s", t.message)
                 return
             }
         }
@@ -500,7 +500,7 @@ class IdeController(private val activity: MainActivity) {
 
     fun stopRun() {
         runner.stop()
-        appendTerminal("\u001b[38;5;244m■ 已终止\u001b[0m\r\n")
+        appendTerminal("\u001b[38;5;244m" + Loc.t("■ 已终止") + "\u001b[0m\r\n")
     }
 
     // --------------------------------------------------------------- 调试
@@ -617,7 +617,7 @@ class IdeController(private val activity: MainActivity) {
             val exitCode = code
             ui {
                 if (text.isNotEmpty()) appendTerminal(text.replace("\n", "\r\n"))
-                appendTerminal("\u001b[38;5;244m● 调试结束，退出码 $exitCode\u001b[0m\r\n")
+                appendTerminal("\u001b[38;5;244m" + Loc.t("● 调试结束，退出码 %s", exitCode) + "\u001b[0m\r\n")
                 endDebug(Loc.t("已结束"))
             }
         }
@@ -861,7 +861,7 @@ class IdeController(private val activity: MainActivity) {
             i.putExtra("path", file.absolutePath)
             activity.startActivity(i)
         } catch (t: Throwable) {
-            toast = "预览失败: ${t.message}"
+            toast = Loc.t("预览失败: %s", t.message)
         }
     }
 
@@ -909,7 +909,7 @@ class IdeController(private val activity: MainActivity) {
                 }
             } catch (t: Throwable) {
                 ui {
-                    toast = "git 刷新失败: ${t.message}"
+                    toast = Loc.t("git 刷新失败: %s", t.message)
                     gitBusy = false
                 }
             }
@@ -952,11 +952,11 @@ class IdeController(private val activity: MainActivity) {
                 }
                 ui {
                     gitDiscardPath = null
-                    toast = "已丢弃 $path"
+                    toast = Loc.t("已丢弃 %s", path)
                 }
                 gitRefresh()
             } catch (t: Throwable) {
-                ui { toast = "丢弃失败: ${t.message}" }
+                ui { toast = Loc.t("丢弃失败: %s", t.message) }
             }
         }, "git-discard").start()
     }
@@ -971,7 +971,7 @@ class IdeController(private val activity: MainActivity) {
                     gitTab = "history"
                 }
             } catch (t: Throwable) {
-                ui { toast = "读取历史失败: ${t.message}" }
+                ui { toast = Loc.t("读取历史失败: %s", t.message) }
             }
         }, "git-log").start()
     }
@@ -983,7 +983,7 @@ class IdeController(private val activity: MainActivity) {
                 op(dir)
                 gitRefresh()
             } catch (t: Throwable) {
-                ui { toast = "git 操作失败: ${t.message}" }
+                ui { toast = Loc.t("git 操作失败: %s", t.message) }
             }
         }, name).start()
     }
@@ -1000,7 +1000,7 @@ class IdeController(private val activity: MainActivity) {
                 }
                 gitRefresh()
             } catch (t: Throwable) {
-                ui { toast = "git init 失败: ${t.message}" }
+                ui { toast = Loc.t("git init 失败: %s", t.message) }
             }
         }, "git-init").start()
     }
@@ -1026,7 +1026,7 @@ class IdeController(private val activity: MainActivity) {
                 }
                 gitRefresh()
             } catch (t: Throwable) {
-                ui { toast = "提交失败: ${t.message}" }
+                ui { toast = Loc.t("提交失败: %s", t.message) }
             }
         }, "git-commit").start()
     }
@@ -1164,7 +1164,7 @@ class IdeController(private val activity: MainActivity) {
                     activity.launchExport("${p.dir.name}.zip")
                 }
             } catch (t: Throwable) {
-                ui { toast = "导出失败: ${t.message}" }
+                ui { toast = Loc.t("导出失败: %s", t.message) }
             }
         }, "export").start()
     }
@@ -1175,9 +1175,9 @@ class IdeController(private val activity: MainActivity) {
             App.ctx.contentResolver.openOutputStream(uri)?.use { out ->
                 src.inputStream().use { it.copyTo(out) }
             }
-            toast = "已导出 ${src.name}"
+            toast = Loc.t("已导出 %s", src.name)
         } catch (t: Throwable) {
-            toast = "写出失败: ${t.message}"
+            toast = Loc.t("写出失败: %s", t.message)
         } finally {
             src.delete()
             pendingExport = null
@@ -1214,10 +1214,10 @@ class IdeController(private val activity: MainActivity) {
                 ui {
                     refreshProjects()
                     switchProject(p)
-                    toast = "已导入 ${p.name}"
+                    toast = Loc.t("已导入 %s", p.name)
                 }
             } catch (t: Throwable) {
-                ui { toast = "导入失败: ${t.message}" }
+                ui { toast = Loc.t("导入失败: %s", t.message) }
             }
         }, "import").start()
     }
@@ -1283,7 +1283,7 @@ class IdeController(private val activity: MainActivity) {
         val root = if (f != null) CToolchain.cmakeRootOf(f) else null
         val key = root?.absolutePath ?: project?.dir?.absolutePath ?: return
         CToolchain.setPreferredTarget(key, name)
-        toast = "运行目标：$name"
+        toast = Loc.t("运行目标：%s", name)
     }
 
     fun ensureTerminal() {
@@ -1366,7 +1366,7 @@ class IdeController(private val activity: MainActivity) {
         )
         val ok = session.start(cwd.absolutePath, 24, 80, env)
         if (!ok) {
-            appendTerminal("\u001b[31mPTY 启动失败 (libptybridge.so)\u001b[0m\r\n")
+            appendTerminal("\u001b[31m" + Loc.t("PTY 启动失败 (libptybridge.so)") + "\u001b[0m\r\n")
         }
     }
 
