@@ -19,6 +19,7 @@ import java.util.concurrent.TimeUnit
 object CDebugger {
 
     private var server: Process? = null
+    private var inferiorPid: Int = 0
     private var client: GdbClient? = null
     private var worker: Thread? = null
     private val commands = LinkedBlockingQueue<String>()
@@ -103,7 +104,8 @@ object CDebugger {
         dwarf = CToolchain.debugInfo(exe)
         log(Loc.t("调试信息：%s 行 / %s 个函数", table.size, dwarf?.all()?.size ?: 0))
 
-        val port = 50000 + (System.nanoTime() % 10000).toInt()
+        cleanup()
+        val port = freePort()
         log(Loc.t("启动 gdbserver :%s", port))
         val pb = ProcessBuilder(CToolchain.binary("gdbserver").absolutePath, ":$port", exe.absolutePath)
         pb.directory(source.parentFile)
@@ -147,6 +149,7 @@ object CDebugger {
         val stopReply = gdb.send("?")
         Log.i("CodePadRSP", "? -> " + stopReply)
         val pid = Regex("thread:p([0-9a-fA-F]+)\\.").find(stopReply)?.groupValues?.get(1)?.toIntOrNull(16)
+        inferiorPid = pid ?: 0
         val base = pid?.let { loadBase(it, exe.absolutePath) } ?: 0L
         Log.i("CodePadRSP", "pid=" + pid + " base=0x" + java.lang.Long.toHexString(base))
 
@@ -558,16 +561,48 @@ object CDebugger {
     fun stop() {
         running = false
         commands.offer("k")
-        client?.close()
+        try {
+            client?.close()
+        } catch (_: Throwable) {
+        }
         cleanup()
     }
 
-    private fun cleanup() {
-        try {
-            server?.destroy()
-        } catch (_: Throwable) {
+    /** 找一个当前真的能 bind 的端口；旧会话残留的 gdbserver 会占着端口，随机撞上就连不上了 */
+    private fun freePort(): Int {
+        for (i in 0 until 60) {
+            val p = 50000 + (System.nanoTime() % 10000).toInt()
+            try {
+                java.net.ServerSocket().use { ss ->
+                    ss.reuseAddress = true
+                    ss.bind(java.net.InetSocketAddress("127.0.0.1", p))
+                }
+                return p
+            } catch (_: Throwable) {
+            }
         }
+        return 50000 + (System.nanoTime() % 10000).toInt()
+    }
+
+    private fun cleanup() {
+        val srv = server
         server = null
+        if (srv != null) {
+            try {
+                srv.destroy()
+                if (!srv.waitFor(300, TimeUnit.MILLISECONDS)) srv.destroyForcibly()
+            } catch (_: Throwable) {
+            }
+        }
+        // gdbserver 被 kill 后，被调试进程可能还停在 ptrace-stopped 状态
+        val ip = inferiorPid
+        inferiorPid = 0
+        if (ip > 0) {
+            try {
+                android.os.Process.sendSignal(ip, 9)
+            } catch (_: Throwable) {
+            }
+        }
         client = null
     }
 }
