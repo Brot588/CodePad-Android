@@ -26,6 +26,9 @@ object CDebugger {
     /** 当前线程的 RSP 标识，范围单步需要带上它 */
     private var threadSpec: String = ""
 
+    /** 是否已经在用户源码里停过（用于判断「跑出源码 = 程序结束」） */
+    private var enteredSource = false
+
     /** 被调试程序的标准输出（gdbserver 会转发到它的 stdout） */
     var onOutput: ((String) -> Unit)? = null
     private var client: GdbClient? = null
@@ -263,11 +266,12 @@ object CDebugger {
             lastPc = pc
             val relPc = pc - base
             // 跑出本文件（libc / PLT / 程序已返回）就不再当作源码行
-            if (table.isNotEmpty() && (relPc < 0 || relPc > table.last().first)) {
+            if (enteredSource && table.isNotEmpty() && (relPc < 0 || relPc > table.last().first)) {
                 publish("{\"type\":\"exit\",\"code\":0}")
                 return
             }
             var line = CToolchain.lineForAddress(table, relPc) ?: 0
+            if (line > 0) enteredSource = true
             lastPublished = line
             Log.i("CodePadRSP", "pc=0x" + java.lang.Long.toHexString(pc) + " line=" + line)
             val reason = if (lastCommand == "c") "断点" else "单步"
