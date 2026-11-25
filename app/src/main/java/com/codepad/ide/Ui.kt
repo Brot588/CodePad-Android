@@ -105,6 +105,8 @@ import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.PlatformTextStyle
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.input.TextFieldValue
@@ -507,9 +509,15 @@ private fun TabStrip(c: IdeController) {
                 Spacer(Modifier.width(5.dp))
                 Text(
                     text = f.name,
-                    fontSize = 12.sp,
                     color = if (selected) Color(0xFFE6EAF2) else Muted,
                     maxLines = 1,
+                    style = LocalTextStyle.current.merge(
+                        TextStyle(
+                            fontSize = 12.sp,
+                            lineHeight = 12.sp,
+                            platformStyle = PlatformTextStyle(includeFontPadding = false),
+                        )
+                    ),
                 )
                 IconButton(
                     onClick = { c.closeTab(f) },
@@ -715,13 +723,19 @@ private fun TreeRow(
             }
             Spacer(Modifier.width(7.dp))
             Text(
-                node.name,
-                fontSize = 12.sp,
-                color = if (node.isDir) Color(0xFFD7DCE5) else Color(0xFFC2C9D6),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f),
-            )
+    node.name,
+    color = if (node.isDir) Color(0xFFD7DCE5) else Color(0xFFC2C9D6),
+    maxLines = 1,
+    overflow = TextOverflow.Ellipsis,
+    modifier = Modifier.weight(1f),
+    style = LocalTextStyle.current.merge(
+        TextStyle(
+            fontSize = 12.sp,
+            lineHeight = 12.sp,
+            platformStyle = PlatformTextStyle(includeFontPadding = false),
+        )
+    ),
+)
             IconButton(onClick = { onMenu(node.file) }, modifier = Modifier.size(22.dp)) {
                 Icon(
                     Icons.Filled.MoreVert,
